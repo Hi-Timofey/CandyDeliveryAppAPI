@@ -3,3 +3,5 @@ venv
 *.pdf
 openapi.yaml
 .env
+*.db
+*.sqlite

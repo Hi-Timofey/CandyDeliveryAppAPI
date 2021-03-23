@@ -7,4 +7,5 @@ from . import regions_to_couriers
 from . import regions
 from . import couriers
 from . import orders
+from . import delivery
 

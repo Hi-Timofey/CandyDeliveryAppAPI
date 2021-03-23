@@ -22,9 +22,9 @@ class Orders(SqlAlchemyBase):
 
     regions = orm.relation("Regions", backref='orders')
 
-    delivery_hours = sa.Column(sa.String, nullable=False)
+    delivery_time = sa.Column(sa.DateTime, nullable=False)
 
-    complete_time = sa.Column(sa.DateTime, nullable=True)
+    order_complete_time = sa.Column(sa.DateTime, nullable=True)
 
     # delivery_id = None
 

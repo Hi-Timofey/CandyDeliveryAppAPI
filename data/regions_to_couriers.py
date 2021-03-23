@@ -6,8 +6,8 @@ from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from .db_session import SqlAlchemyBase
 
 
-class RegionsToCouriers(SqlAlchemyBase):
-    __tablename__ = 'regions_to_couriers'
+class CouriersToRegions(SqlAlchemyBase):
+    __tablename__ = 'couriers_to_regions'
 
     id = sa.Column(sa.Integer,
                    primary_key=True, autoincrement=True)

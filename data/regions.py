@@ -6,15 +6,6 @@ from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from .db_session import SqlAlchemyBase
 
 
-# RegionsToCouriers = sqlalchemy.Table(
-#     'regions_to_couriers',
-#     SqlAlchemyBase.metadata,
-#     sqlalchemy.Column('regions', sqlalchemy.Integer,
-#                       sqlalchemy.ForeignKey('regions.region_id')),
-#     sqlalchemy.Column('couriers', sqlalchemy.Integer,
-#                       sqlalchemy.ForeignKey('couriers.courier_id'))
-# )
-
 class Regions(SqlAlchemyBase):
     __tablename__ = 'regions'
 
@@ -22,6 +13,8 @@ class Regions(SqlAlchemyBase):
                           primary_key=True, autoincrement=True)
 
     region_code = sa.Column(sa.Integer, nullable=False)
+
+    regions_orders = orm.relation('Orders', back_populates='regions')
 
 
 # class RegionsSchema(SQLAlchemyAutoSchema):

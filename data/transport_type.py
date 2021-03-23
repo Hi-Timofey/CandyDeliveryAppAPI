@@ -8,11 +8,14 @@ class TransportTypes(SqlAlchemyBase):
     __tablename__ = 'transport_types'
 
     type_id = sa.Column(sa.Integer,
-                        primary_key=True, autoincrement=True)
+                        primary_key=True, autoincrement=True, unique=True)
 
-    type_name = sa.Column(sa.Integer, nullable=False)
+    type_name = sa.Column(sa.String, nullable=False)
 
     type_weight = sa.Column(sa.Integer, nullable=False)
+
+    couriers_with_type = orm.relation('Couriers', back_populates='courier_type')
+
 
     def __init__(self, type_name, type_weight):
         self.type_name = type_name

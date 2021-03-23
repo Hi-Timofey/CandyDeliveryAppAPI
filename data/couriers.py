@@ -13,7 +13,10 @@ class Couriers(SqlAlchemyBase):
     courier_id = sa.Column(sa.Integer,
                            primary_key=True, autoincrement=True)
 
-    courier_type = sa.Column(sa.String, nullable=False)
+
+    courier_type_id = sa.Column(sa.Integer,sa.ForeignKey('transport_types.type_id'), nullable=False)
+
+    courier_type = orm.relation('TransportTypes', back_populates='couriers_with_type')
 
     working_hours = sa.Column(sa.String, nullable=False)
 
@@ -22,7 +25,7 @@ class Couriers(SqlAlchemyBase):
     earnings = sa.Column(sa.Integer, nullable=False, default=0)
 
     regions = orm.relation("Regions",
-                           secondary='regions_to_couriers',
+                           secondary='couriers_to_regions',
                            backref='couriers')
 
 

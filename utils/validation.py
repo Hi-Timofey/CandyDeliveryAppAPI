@@ -22,10 +22,28 @@ def validate_wh(working_hours: list) -> bool:
     return True
 
 
-def validate_courier_hours(courier_json: dict) -> bool:
+def validate_regions(regions: list) -> bool:
+    if not isinstance(regions, list):
+        return False
+    for r in regions:
+        try:
+            if isinstance(r, bool) or not isinstance(r, int):
+                return False
+            if r <= 0:
+                return False
+            if regions.count(r) > 1:
+                return False
+        except TypeError as te:
+            return False
+
+    return True
+
+
+def validate_courier_json(courier_json: dict) -> bool:
     try:
         wh = courier_json['working_hours']
-        validate_wh(wh)
-        return True
+        r = courier_json['regions']
+
+        return validate_wh(wh) and validate_regions(r)
     except BaseException as be:
         raise ValueError('Something went wrong - ' + be)

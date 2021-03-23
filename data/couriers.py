@@ -39,12 +39,12 @@ class Couriers(SqlAlchemyBase):
         'Delivery', back_populates='delivery_courier')
 
 # TODO: Refractor to another dir and separeted file for this class
+
+
 class CouriersSchema(SQLAlchemySchema):
     class Meta:
         model = Couriers
         load_instance = True
 
     courier_id = auto_field()
-    courier_type = auto_field('courier_type_id')
     working_hours = auto_field()
-    regions = auto_field()

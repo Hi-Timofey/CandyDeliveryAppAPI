@@ -6,7 +6,7 @@ from pprint import pprint
 
 from data import db_session
 # Importing utils
-from utils.validation import *
+from utils import converter, validation
 
 # Importing all models to work correctly in app.py
 from data.transport_type import TransportTypes
@@ -38,9 +38,25 @@ def get_couriers():
     db_sess = db_session.create_session()
     for courier_json in couriers_list:
 
-        if validate_courier_hours(courier_json):
+        if validation.validate_courier_json(courier_json):
+            courier_json['working_hours'] = converter.convert_wh_hours_to_str(
+                courier_json['working_hours'])
+        else:
+            return jsonify(['NOPE'])
 
-        courier['working_hours'] = validate_courier_hours(courier_json)
+        added_regions = []
+        for region_name in courier_json['regions']:
+            if db_sess.query(Regions).filter(Regions.region_code == region_name).first(
+            ) is None and region_name not in added_regions:
+                print(f'creating region with code "{region_name}"...')
+                breakpoint()
+                reg = Regions(region_name)
+                db_sess.add(reg)
+                added_regions.append(reg)
+
+        breakpoint()
+        if not courier_json['courier_type'] not in ['foot','bike','car']:
+            return jsonify(['NOPE'])
         courier = couriers_schema.load(courier_json, session=db_sess)
 
         print(

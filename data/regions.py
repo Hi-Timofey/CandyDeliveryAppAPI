@@ -16,6 +16,13 @@ class Regions(SqlAlchemyBase):
 
     regions_orders = orm.relation('Orders', back_populates='regions')
 
+    def __init__(self, region_code):
+        self.region_code = region_code
+
+    def create(self, db_session):
+        db_session.add(self)
+        db_session.commit()
+        return self
 
 # class RegionsSchema(SQLAlchemyAutoSchema):
 #     class Meta:

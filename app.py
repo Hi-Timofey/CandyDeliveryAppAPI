@@ -5,8 +5,18 @@ import os
 from pprint import pprint
 
 from data import db_session
-from data.couriers import Couriers#, CouriersSchema
+# Importing utils
+from utils.validation import *
 
+# Importing all models to work correctly in app.py
+from data.transport_type import TransportTypes
+from data.regions_to_couriers import CouriersToRegions
+from data.orders import Orders
+from data.regions import Regions
+from data.delivery import Delivery
+from data.couriers import Couriers
+
+from data.couriers import CouriersSchema
 
 app = Flask(__name__)
 
@@ -15,25 +25,36 @@ client = app.test_client()
 app.config['SECRET_KEY'] = os.getenv('KEY')
 
 
+# SCHEMAS FOR (DE)SERIALIZING DATA
+couriers_schema = CouriersSchema()
+
+
 # 1) POST /couriers
 @app.route('/couriers', methods=['POST'])
 def get_couriers():
     data = request.get_json()
     couriers_list = data['data']
 
-    for courier in couriers_list:
-        courier_id = courier['courier_id']
-        courier_type = courier['courier_type']
-        regions = courier['regions']
-        working_hours = courier['working_hours']
+    db_sess = db_session.create_session()
+    for courier_json in couriers_list:
 
-        db_sess = db_session.create_session()
-        new_courier = Couriers()
-        new_courier.courier_id = courier_id
+        if validate_courier_hours(courier_json):
+
+        courier['working_hours'] = validate_courier_hours(courier_json)
+        courier = couriers_schema.load(courier_json, session=db_sess)
+
+        print(
+            'COURIER:',
+            # courier_id,
+            # courier_type,
+            # regions,
+            # working_hours,
+            f'<|{courier}|>')
+        # new_courier = Couriers()
+        # new_courier.courier_id = courier_id
         # TODO: Courier type
 
-
-    return jsonify(['Okay, here is goes your couriers'])
+    return '<h1>WORKING</h1>'  # jsonify(['Okay, here is goes your couriers'])
 
 
 # 2) PATCH /couriers/$courier_id

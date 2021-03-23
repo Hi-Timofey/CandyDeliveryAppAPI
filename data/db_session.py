@@ -12,10 +12,22 @@ def _after_init_db():
     # Adding TRANSPORT_TYPE CONSTANTS
     from .transport_type import TransportTypes
     db_sess = create_session()
-    type_0 = TransportTypes('foot', 10).create(db_sess)
-    type_1 = TransportTypes('bike', 15).create(db_sess)
-    type_2 = TransportTypes('car',  50).create(db_sess)
+    if len(db_sess.query(TransportTypes).all()) != 3:
+        print('-'*20, 'TRANSPORT TYPES CREATING', '-'*20)
+        type_0 = TransportTypes(
+            type_name='foot',
+            type_weight=10)
+        type_1 = TransportTypes(
+            type_name='bike',
+            type_weight=15)
+        type_2 = TransportTypes(
+            type_name='car',
+            type_weight=50)
 
+        db_sess.add(type_0)
+        db_sess.add(type_1)
+        db_sess.add(type_2)
+        db_sess.commit()
 
 
 def global_init_sqlite(db_file):
@@ -38,7 +50,6 @@ def global_init_sqlite(db_file):
     SqlAlchemyBase.metadata.create_all(engine)
 
     _after_init_db()
-
 
 
 def create_session() -> Session:

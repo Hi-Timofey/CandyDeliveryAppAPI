@@ -19,6 +19,9 @@ class Regions(SqlAlchemyBase):
     def __init__(self, region_code):
         self.region_code = region_code
 
+    def __repr__(self):
+        return f'Reg(id={self.region_id}, code={self.region_code}) ORD:{self.regions_orders}'
+
     def create(self, db_session):
         db_session.add(self)
         db_session.commit()

@@ -16,61 +16,70 @@ from data.regions import Regions
 from data.delivery import Delivery
 from data.couriers import Couriers
 
-from data.couriers import CouriersSchema
+from data.schemas import *
 
 app = Flask(__name__)
 
-client = app.test_client()
-
-app.config['SECRET_KEY'] = os.getenv('KEY')
-
-
-# SCHEMAS FOR (DE)SERIALIZING DATA
-couriers_schema = CouriersSchema()
-
-
 # 1) POST /couriers
+
+
 @app.route('/couriers', methods=['POST'])
 def get_couriers():
     data = request.get_json()
     couriers_list = data['data']
 
     db_sess = db_session.create_session()
+    validation_error = {"validation_error": {
+        "couriers": []
+        }
+        }
+
+    valid_couriers = []
     for courier_json in couriers_list:
 
-        if validation.validate_courier_json(courier_json):
+        if validation.validate_courier_json(courier_json, db_sess):
             courier_json['working_hours'] = converter.convert_wh_hours_to_str(
                 courier_json['working_hours'])
+            courier_json['courier_type'] = db_sess.query(
+                TransportTypes).filter(
+                TransportTypes.type_name
+                == courier_json['courier_type']).first()
         else:
-            return jsonify(['NOPE'])
+            validation_error["validation_error"]['couriers'].append(
+                {'id': courier_json['courier_id']})
+            continue
 
         added_regions = []
+        regions = []
         for region_name in courier_json['regions']:
             if db_sess.query(Regions).filter(Regions.region_code == region_name).first(
             ) is None and region_name not in added_regions:
-                print(f'creating region with code "{region_name}"...')
-                breakpoint()
                 reg = Regions(region_name)
                 db_sess.add(reg)
+                # db_sess.commit()
                 added_regions.append(reg)
+            elif db_sess.query(Regions).filter(Regions.region_code == region_name).first() is not None:
+                reg = db_sess.query(Regions).filter(
+                            Regions.region_code == region_name).first()
+                regions.append(reg)
 
-        breakpoint()
-        if not courier_json['courier_type'] not in ['foot','bike','car']:
-            return jsonify(['NOPE'])
-        courier = couriers_schema.load(courier_json, session=db_sess)
+        courier = Couriers()
+        courier.courier_id = courier_json['courier_id']
+        courier.courier_type_id = courier_json['courier_type'].type_id
+        courier.regions = added_regions + regions
+        courier.working_hours = courier_json['working_hours']
+        valid_couriers.append(courier)
 
-        print(
-            'COURIER:',
-            # courier_id,
-            # courier_type,
-            # regions,
-            # working_hours,
-            f'<|{courier}|>')
-        # new_courier = Couriers()
-        # new_courier.courier_id = courier_id
-        # TODO: Courier type
+    if len(validation_error["validation_error"]['couriers']) != 0:
+        return make_response(jsonify(validation_error), 400)
 
-    return '<h1>WORKING</h1>'  # jsonify(['Okay, here is goes your couriers'])
+    response = {'couriers': []}
+    for cour in valid_couriers:
+        db_sess.add(cour)
+        response['couriers'].append({"id": cour.courier_id})
+    db_sess.commit()
+
+    return make_response(jsonify(response), 201)
 
 
 # 2) PATCH /couriers/$courier_id
@@ -82,7 +91,62 @@ def patch_couriers(courier_id):
 # 3) POST /orders
 @app.route('/orders', methods=['POST'])
 def set_orders():
-    return jsonify(['Okay, new ORDERS is COMING'])
+    # --------------------------------------------------------------------------
+    data = request.get_json()
+    orders_list = data['data']
+
+    db_sess = db_session.create_session()
+    validation_error = {"validation_error": {
+        "orders": []
+        }
+        }
+
+    valid_orders = []
+    for order_json in orders_list:
+
+        if validation.validate_courier_json(courier_json, db_sess):
+            courier_json['working_hours'] = converter.convert_wh_hours_to_str(
+                courier_json['working_hours'])
+            courier_json['courier_type'] = db_sess.query(
+                TransportTypes).filter(
+                TransportTypes.type_name
+                == courier_json['courier_type']).first()
+        else:
+            validation_error["validation_error"]['couriers'].append(
+                {'id': courier_json['courier_id']})
+            continue
+
+        added_regions = []
+        regions = []
+        for region_name in courier_json['regions']:
+            if db_sess.query(Regions).filter(Regions.region_code == region_name).first(
+            ) is None and region_name not in added_regions:
+                reg = Regions(region_name)
+                db_sess.add(reg)
+                # db_sess.commit()
+                added_regions.append(reg)
+            elif db_sess.query(Regions).filter(Regions.region_code == region_name).first() is not None:
+                reg = db_sess.query(Regions).filter(
+                            Regions.region_code == region_name).first()
+                regions.append(reg)
+
+        courier = Couriers()
+        courier.courier_id = courier_json['courier_id']
+        courier.courier_type_id = courier_json['courier_type'].type_id
+        courier.regions = added_regions + regions
+        courier.working_hours = courier_json['working_hours']
+        valid_couriers.append(courier)
+
+    if len(validation_error["validation_error"]['couriers']) != 0:
+        return make_response(jsonify(validation_error), 400)
+
+    response = {'couriers': []}
+    for cour in valid_couriers:
+        db_sess.add(cour)
+        response['couriers'].append({"id": cour.courier_id})
+    db_sess.commit()
+
+    return make_response(jsonify(response), 201)
 
 
 # 4) POST /orders/assign
@@ -109,10 +173,16 @@ def get_courier_info(courier_id):
     return make_response(jsonify(json_courier))
 
 
-def main():
-    db_session.global_init_sqlite('db.sqlite')
-    app.run()
+client = app.test_client()
 
+app.config['SECRET_KEY'] = os.getenv('KEY')
+
+# SCHEMAS FOR (DE)SERIALIZING DATA
+couriers_schema = CouriersSchema()
+regions_schema = RegionsSchema()
+type_schema = TransportTypesSchema()
 
 if __name__ == '__main__':
-    main()
+    # Preparing db and run app
+    db_session.global_init_sqlite('db.sqlite')
+    app.run()

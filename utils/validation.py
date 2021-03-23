@@ -1,4 +1,7 @@
 from datetime import time
+from data.transport_type import TransportTypes
+from data.couriers import Couriers
+from data.db_session import create_session
 
 
 def validate_wh(working_hours: list) -> bool:
@@ -39,11 +42,17 @@ def validate_regions(regions: list) -> bool:
     return True
 
 
-def validate_courier_json(courier_json: dict) -> bool:
+def validate_courier_json(courier_json: dict, db) -> bool:
     try:
+        i = courier_json['courier_id']
         wh = courier_json['working_hours']
         r = courier_json['regions']
+        types = courier_json['courier_type']
 
-        return validate_wh(wh) and validate_regions(r)
+        query_type = db.query(TransportTypes.type_name).all()
+        query_id = db.query(Couriers).filter(Couriers.courier_id == i).first()
+
+        return query_id is None and validate_wh(
+            wh) and validate_regions(r) and (types,) in query_type
     except BaseException as be:
-        raise ValueError('Something went wrong - ' + be)
+        raise ValueError('Something went wrong - ' + str(be))

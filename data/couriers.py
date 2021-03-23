@@ -1,9 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy import orm
 
-from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
-from marshmallow import fields
-
 
 import datetime
 from .db_session import SqlAlchemyBase
@@ -38,13 +35,6 @@ class Couriers(SqlAlchemyBase):
     courier_delivery = orm.relation(
         'Delivery', back_populates='delivery_courier')
 
-# TODO: Refractor to another dir and separeted file for this class
-
-
-class CouriersSchema(SQLAlchemySchema):
-    class Meta:
-        model = Couriers
-        load_instance = True
-
-    courier_id = auto_field()
-    working_hours = auto_field()
+    def __repr__(self):
+        return 'Courier(id="{}", type="{}", working_hours="{}", regions="{}")'.format(
+            self.courier_id, self.courier_type, self.working_hours, self.regions)

@@ -182,7 +182,12 @@ couriers_schema = CouriersSchema()
 regions_schema = RegionsSchema()
 type_schema = TransportTypesSchema()
 
-if __name__ == '__main__':
+
+def main():
     # Preparing db and run app
     db_session.global_init_sqlite('db.sqlite')
     app.run()
+
+
+if __name__ == '__main__':
+    main()

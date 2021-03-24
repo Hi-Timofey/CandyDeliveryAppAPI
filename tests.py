@@ -100,7 +100,7 @@ def test_validate_wh_okay():
         assert answer
 
 
-def test_get_couriers():
+def test_post_couriers():
     db_session.global_init_sqlite(db_file)
     session = db_session.create_session()
     client = tested_app.test_client()
@@ -173,6 +173,75 @@ def test_get_couriers():
     assert isinstance(
         json['couriers'][1]['id'], type(
             data_r['couriers'][1]['id']))
+
+
+def test_post_orders():
+    db_session.global_init_sqlite(db_file)
+    session = db_session.create_session()
+    client = tested_app.test_client()
+    data = {'data':
+            [
+                {
+                    "order_id": 1,
+                    "weight": 0.23,
+                    "region": 1,
+                    "delivery_hours": ["11:35-14:05", "09:00-11:00"]
+                },
+                {
+                    "order_id": 2,
+                    "weight": 43,
+                    "region": 2,
+                    "delivery_hours": ["09:00-18:00"]
+                }]
+
+            }
+    data_r = {
+        "orders": [{"id": 1}, {"id": 2}]
+    }
+
+    res = client.post('/orders', json=data)
+
+    assert res.status_code == 201
+
+    json = res.get_json()
+    assert json['orders']
+    assert isinstance(json['orders'], list)
+    assert len(json['orders']) == 2
+
+    assert json['orders'][0]['id'] == data_r['orders'][0]['id']
+    assert json['orders'][1]['id'] == data_r['orders'][1]['id']
+
+    assert isinstance(
+        json['orders'][0]['id'], type(
+            data_r['orders'][0]['id']))
+    assert isinstance(
+        json['orders'][1]['id'], type(
+            data_r['orders'][1]['id']))
+
+    res = client.post('/orders', json=data)
+    assert res.status_code == 400
+    assert res.get_json()['validation_error']
+    json = res.get_json()['validation_error']
+
+    assert json['orders']
+    assert isinstance(json['orders'], list)
+    assert len(json['orders']) == 2
+
+    assert json['orders'][0]['id'] == 1
+    assert json['orders'][1]['id'] == 2
+    assert isinstance(
+        json['orders'][0]['id'], type(
+            data['data'][0]['order_id']))
+    assert isinstance(
+        json['orders'][1]['id'], type(
+            data['data'][1]['order_id']))
+
+    assert isinstance(
+        json['orders'][0]['id'], type(
+            data_r['orders'][0]['id']))
+    assert isinstance(
+        json['orders'][1]['id'], type(
+            data_r['orders'][1]['id']))
 
 
 def test_clear_testing_database():

@@ -14,7 +14,7 @@ class Regions(SqlAlchemyBase):
 
     region_code = sa.Column(sa.Integer, nullable=False)
 
-    regions_orders = orm.relation('Orders', back_populates='regions')
+    regions_orders = orm.relation('Orders', back_populates='region')
 
     def __init__(self, region_code):
         self.region_code = region_code

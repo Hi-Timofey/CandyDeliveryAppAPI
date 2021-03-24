@@ -22,7 +22,7 @@ class Orders(SqlAlchemyBase):
         sa.ForeignKey('regions.region_id'),
         nullable=False)
 
-    regions = orm.relation("Regions", backref='orders')
+    region = orm.relation("Regions", backref='orders')
 
     delivery_time = sa.Column(sa.String, nullable=False)
 

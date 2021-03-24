@@ -62,8 +62,7 @@ def get_couriers():
                 db_sess.add(reg)
                 # db_sess.commit()
                 added_regions.append(reg)
-            elif db_sess.query(Regions).filter(Regions.region_code ==
-                                               region_name).first() is not None:
+            else:
                 reg = db_sess.query(Regions).filter(
                             Regions.region_code == region_name).first()
                 regions.append(reg)
@@ -110,14 +109,16 @@ def set_orders():
     valid_orders = []
     for order_json in orders_list:
 
-        breakpoint()
         if Orders.validate_order_json(order_json, db_sess):
             if ve:
                 continue
             order = Orders()
             order.order_id = order_json['order_id']
             order.weight = order_json['weight']
-            order.region_id = order_json['region']
+
+            reg = Regions(region_code=order_json['region'])
+
+            order.region = reg
             order.delivery_time = convert_wh_hours_to_str(
                 order_json['delivery_hours'])
 

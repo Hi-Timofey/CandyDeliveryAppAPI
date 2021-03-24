@@ -2,7 +2,8 @@ import sqlalchemy as sa
 from sqlalchemy import orm
 from .transport_type import TransportTypes
 
-
+import re
+from cerberus import Validator
 import datetime
 from .db_session import SqlAlchemyBase
 
@@ -59,11 +60,14 @@ class Couriers(SqlAlchemyBase):
 
     @staticmethod
     def validate_wh(working_hours: list) -> bool:
-        if not (isinstance(working_hours, list) and len(working_hours) > 0):
+        s = re.compile('^[0-2]{1}[0-9]{1}:[0-9]{2}-[0-2]{1}[0-9]{1}:[0-9]{2}$')
+        if not (isinstance(
+                working_hours, list) and len(working_hours) > 0):
             return False
 
         for wh in working_hours:
             try:
+                assert s.match(wh)
                 period = wh.split('-')
                 time_from = datetime.time.fromisoformat(period[0])
                 time_to = datetime.time.fromisoformat(period[1])
@@ -80,17 +84,40 @@ class Couriers(SqlAlchemyBase):
 
     @staticmethod
     def validate_courier_json(courier_json: dict, db) -> bool:
-        try:
-            i = courier_json['courier_id']
-            wh = courier_json['working_hours']
-            r = courier_json['regions']
-            types = courier_json['courier_type']
+        cj_schema = {
+            'courier_id': {
+                'required': True,
+                'type': 'integer'},
+            'courier_type': {
+                'required': True,
+                'type': 'string',
+                'regex': '^[a-zA-Z]+$'},
+            'regions': {
+                'type': 'list',
+                'required': True,
+                'minlength': 0,
+                'schema': {
+                    'type': 'integer',
+                    'min': 0}},
+            'working_hours': {'type': 'list'}}
+        cour_valid = Validator(cj_schema)
 
-            query_type = db.query(TransportTypes.type_name).all()
-            query_id = db.query(Couriers).filter(
-                Couriers.courier_id == i).first()
+        if cour_valid.validate(courier_json):
+            try:
+                i = courier_json['courier_id']
+                wh = courier_json['working_hours']
+                r = courier_json['regions']
+                types = courier_json['courier_type']
 
-            return query_id is None and Couriers.validate_wh(
-                wh) and Couriers.validate_regions(r) and (types,) in query_type
-        except BaseException as be:
-            raise ValueError('Something went wrong - ' + str(be))
+                query_type = db.query(
+                    TransportTypes.type_name).filter(
+                    TransportTypes.type_name.like(types))
+                query_id = db.query(Couriers).filter(
+                    Couriers.courier_id == i).first()
+
+                return query_id is None and Couriers.validate_wh(
+                    wh) and Couriers.validate_regions(r) and (types,) in query_type
+            except BaseException as be:
+                raise ValueError('Something went wrong - ' + str(be))
+        else:
+            return False  # cour_valid.errors

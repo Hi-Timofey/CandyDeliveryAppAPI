@@ -3,9 +3,71 @@ from sqlalchemy import orm
 from .transport_type import TransportTypes
 
 import re
+import json
+from datetime import time
 from cerberus import Validator
 import datetime
 from .db_session import SqlAlchemyBase
+
+
+def convert_wh_hours_to_time(working_hours):
+    answer = []
+    for wh in working_hours:
+        period = wh.split('-')
+        time_from = time.fromisoformat(period[0])
+        time_to = time.fromisoformat(period[1])
+        answer.append([time_from, time_to])
+    return answer
+
+
+def convert_wh_hours_to_str(working_hours: list) -> str:
+    answer = json.dumps(working_hours)
+    return answer
+
+
+def validate_wh(working_hours: list, *cerb) -> bool:
+
+    if cerb != ():
+        working_hours = cerb[0]
+
+    s = re.compile('^[0-2]{1}[0-9]{1}:[0-9]{2}-[0-2]{1}[0-9]{1}:[0-9]{2}$')
+    if not (isinstance(
+            working_hours, list) and len(working_hours) > 0):
+        if cerb != ():
+            cerb[-1](working_hours, 'type TypeError')
+        return False
+
+    for wh in working_hours:
+        if not (isinstance(
+                wh, str)):
+            return False
+        a = s.match(wh) is not None
+        if not a:
+            if cerb != ():
+                cerb[-1](working_hours, 'RegExp Error')
+            return False
+        try:
+            period = wh.split('-')
+            time_from = datetime.time.fromisoformat(period[0])
+            time_to = datetime.time.fromisoformat(period[1])
+        except ValueError as ve:
+            if cerb != ():
+                cerb[-1](working_hours, ve)
+            return False
+        except AttributeError as ae:
+            if cerb != ():
+                cerb[-1](working_hours, ae)
+            return False
+        except BaseException as be:
+            if cerb != ():
+                cerb[-1](working_hours, ve)
+            raise ValueError(be)
+
+        if not time_from < time_to:
+            if cerb != ():
+                cerb[-1](working_hours, 'Time Error')
+            return False
+    return True
 
 
 class Couriers(SqlAlchemyBase):
@@ -59,35 +121,11 @@ class Couriers(SqlAlchemyBase):
         return True
 
     @staticmethod
-    def validate_wh(working_hours: list) -> bool:
-        s = re.compile('^[0-2]{1}[0-9]{1}:[0-9]{2}-[0-2]{1}[0-9]{1}:[0-9]{2}$')
-        if not (isinstance(
-                working_hours, list) and len(working_hours) > 0):
-            return False
-
-        for wh in working_hours:
-            try:
-                assert s.match(wh)
-                period = wh.split('-')
-                time_from = datetime.time.fromisoformat(period[0])
-                time_to = datetime.time.fromisoformat(period[1])
-            except ValueError as ve:
-                return False
-            except AttributeError as ae:
-                return False
-            except BaseException as be:
-                raise ValueError(be)
-
-            if not time_from < time_to:
-                return False
-        return True
-
-    @staticmethod
     def validate_courier_json(courier_json: dict, db) -> bool:
         cj_schema = {
             'courier_id': {
                 'required': True,
-                'type': 'integer'},
+                'type': 'integer', 'min': 1},
             'courier_type': {
                 'required': True,
                 'type': 'string',
@@ -98,7 +136,7 @@ class Couriers(SqlAlchemyBase):
                 'minlength': 0,
                 'schema': {
                     'type': 'integer',
-                    'min': 0}},
+                    'min': 1}},
             'working_hours': {'type': 'list'}}
         cour_valid = Validator(cj_schema)
 
@@ -112,10 +150,11 @@ class Couriers(SqlAlchemyBase):
                 query_type = db.query(
                     TransportTypes.type_name).filter(
                     TransportTypes.type_name.like(types))
+
                 query_id = db.query(Couriers).filter(
                     Couriers.courier_id == i).first()
 
-                return query_id is None and Couriers.validate_wh(
+                return query_id is None and validate_wh(
                     wh) and Couriers.validate_regions(r) and (types,) in query_type
             except BaseException as be:
                 raise ValueError('Something went wrong - ' + str(be))

@@ -1,8 +1,6 @@
 from app import app as tested_app
 from data import db_session, couriers
 import pytest
-import utils
-from utils import converter
 from datetime import time
 import os
 
@@ -22,7 +20,7 @@ def test_convert_wh_hours_to_time():
         inp = input_data[i]
         out = output_data[i]
         print('For input:', f'"{inp}"', f'with correct: "{out}"')
-        answer = converter.convert_wh_hours_to_time(inp)
+        answer = couriers.convert_wh_hours_to_time(inp)
         print('Answer is:', f'"{answer}"')
         assert out == answer
 
@@ -42,7 +40,7 @@ def test_convert_wh_hours_to_str():
         inp = input_data[i]
         out = output_data[i]
         print('For input:', f'"{inp}"', f'with correct: "{out}"')
-        answer = converter.convert_wh_hours_to_str(inp)
+        answer = couriers.convert_wh_hours_to_str(inp)
         print('Answer is:', f'"{answer}"')
         assert out == answer
 
@@ -75,7 +73,7 @@ def test_validate_wh_wrong():
     ]
     for inp in input_bad_data:
         print('For input:', f'"{inp}"')
-        answer = couriers.Couriers.validate_wh(inp)
+        answer = couriers.validate_wh(inp)
         print('Answer is:', f'"{answer}"')
         assert not answer
 
@@ -86,7 +84,7 @@ def test_validate_wh_wrong():
 
     for inp in input_wrong_time_data:
         print('For input:', f'"{inp}"')
-        answer = couriers.Couriers.validate_wh(inp)
+        answer = couriers.validate_wh(inp)
         print('Answer is:', f'"{answer}"')
         assert not answer
 
@@ -98,7 +96,7 @@ def test_validate_wh_okay():
         ['01:00-23:00']
     ]
     for inp in input_data:
-        answer = couriers.Couriers.validate_wh(inp)
+        answer = couriers.validate_wh(inp)
         assert answer
 
 
@@ -135,8 +133,8 @@ def test_get_couriers():
     assert isinstance(json['couriers'], list)
     assert len(json['couriers']) == 2
 
-    assert json['couriers'][0]['id'] == 1
-    assert json['couriers'][1]['id'] == 2
+    assert json['couriers'][0]['id'] == data_r['couriers'][0]['id']
+    assert json['couriers'][1]['id'] == data_r['couriers'][1]['id']
     assert isinstance(
         json['couriers'][0]['id'], type(
             data['data'][0]['courier_id']))

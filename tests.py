@@ -1,9 +1,8 @@
 from app import app as tested_app
-from data import db_session
+from data import db_session, couriers
 import pytest
 import utils
 from utils import converter
-from utils import validation
 from datetime import time
 import os
 
@@ -56,7 +55,7 @@ def test_validate_regions_wrong():
     ]
     for inp in input_bad_data:
         print('For input:', f'"{inp}"')
-        answer = validation.validate_regions(inp)
+        answer = couriers.Couriers.validate_regions(inp)
         print('Answer is:', f'"{answer}"')
         assert not answer
 
@@ -64,7 +63,7 @@ def test_validate_regions_wrong():
 def test_validate_regions_okay():
     input_okay_data = [[1, 2, 3], [12, 23, 123], [35, 30]]
     for inp in input_okay_data:
-        answer = validation.validate_regions(inp)
+        answer = couriers.Couriers.validate_regions(inp)
         assert answer
 
 
@@ -76,7 +75,7 @@ def test_validate_wh_wrong():
     ]
     for inp in input_bad_data:
         print('For input:', f'"{inp}"')
-        answer = validation.validate_wh(inp)
+        answer = couriers.Couriers.validate_wh(inp)
         print('Answer is:', f'"{answer}"')
         assert not answer
 
@@ -87,7 +86,7 @@ def test_validate_wh_wrong():
 
     for inp in input_wrong_time_data:
         print('For input:', f'"{inp}"')
-        answer = validation.validate_wh(inp)
+        answer = couriers.Couriers.validate_wh(inp)
         print('Answer is:', f'"{answer}"')
         assert not answer
 
@@ -99,7 +98,7 @@ def test_validate_wh_okay():
         ['01:00-23:00']
     ]
     for inp in input_data:
-        answer = validation.validate_wh(inp)
+        answer = couriers.Couriers.validate_wh(inp)
         assert answer
 
 

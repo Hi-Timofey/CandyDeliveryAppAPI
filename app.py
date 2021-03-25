@@ -14,8 +14,6 @@ from data.delivery import Delivery
 from data.couriers import *
 
 
-from data.schemas import *
-
 # Other packages
 import os
 from pprint import pprint
@@ -23,11 +21,12 @@ import datetime
 
 app = Flask(__name__)
 
-# 1) POST /couriers
-
 
 @app.route('/couriers', methods=['POST'])
 def get_couriers():
+    '''
+    1) POST /couriers
+    '''
     data = request.get_json()
     couriers_list = data['data']
 
@@ -86,16 +85,47 @@ def get_couriers():
     return make_response(jsonify(response), 201)
 
 
-# 2) PATCH /couriers/$courier_id
 @app.route('/couriers/<int:courier_id>', methods=['PATCH'])
 def patch_couriers(courier_id):
-    return jsonify(['Okay, PATCH `EM ALL', courier_id])
+    '''
+    2) PATCH /couriers/$courier_id
+    '''
+    if isinstance(courier_id, int):
+        if courier_id > 0:
+            data = request.get_json()
+            db_sess = db_session.create_session()
+
+            if Couriers.validate_patch(data):
+
+                cour = db_sess.query(Couriers).filter(
+                        Couriers.courier_id.like(courier_id)).first()
+
+                for key in data:
+                    if isinstance(data[key], str):
+                        # cour type
+                        new_type = db_sess.query(TransportTypes).filter(
+                            TransportTypes.type_name == data[key]).first()
+                        if new_type:
+                            cour.change_cour_type(new_type, db_sess)
+                    elif isinstance(data[key], str) and \
+                            isinstance(data[key][0], int):
+                        # region
+                        new_regions = data[key]
+                        cour.change_cour_regions(new_regions, db_sess)
+                    else:
+                        new_working_hours = data[key]
+                        cour.change_cour_work_hours(new_working_hours, db_sess)
+
+            breakpoint()
+            return make_response(jsonify(couriers_schema.dumps(cour)), 201)
+    return '', '400 Bad request'
 
 
-# 3) POST /orders
-@app.route('/orders', methods=['POST'])
+@ app.route('/orders', methods=['POST'])
 def set_orders():
-    # --------------------------------------------------------------------------
+    '''
+    3) POST /orders
+    '''
     data = request.get_json()
     orders_list = data['data']
 
@@ -142,21 +172,85 @@ def set_orders():
         return make_response(jsonify(response), 201)
 
 
-# 4) POST /orders/assign
-@app.route('/orders/assign', methods=['POST'])
+@ app.route('/orders/assign', methods=['POST'])
 def assign_orders():
-    return jsonify(['Okay, ORDERS is ASSIGMENTING'])
+    '''
+    4) POST /orders/assign
+    '''
+    data = request.get_json()
+    db_sess = db_session.create_session()
+
+    if data is not None:
+        if Couriers.validate_assigment(data):
+            courier_id = data['courier_id']
+
+            cour = db_sess.query(Couriers).filter(
+                Couriers.courier_id == courier_id).first()
+
+            if cour is not None and not cour.is_working():
+
+                regions = [reg.region_id for reg in cour.regions]
+
+                orders = db_sess.query(Orders).filter(
+                    Orders.weight <= cour.courier_type.type_weight,
+                    Orders.region_id.in_(regions)
+                ).all()
+
+                for_deliver = []
+                for order in orders:
+                    # print('Ordered:', order.delivery_time)
+                    # print('Working:', cour.working_hours)
+                    if cour.could_he_take(order):
+                        for_deliver.append(order)
+
+                if len(for_deliver) > 0:
+                    response = {
+                        "orders": [],
+                        "assign_time": "2021-01-10T09:32:14.42Z"
+                        }
+
+                    delivery = Delivery()
+                    for order in for_deliver:
+                        response['orders'].append({'id': order.order_id})
+                    # --- DB ---
+
+                    delivery.delivery_courier = cour
+                    delivery.assigned_courier_type_id = cour.courier_type_id
+                    delivery.assigned_courier_type = cour.courier_type
+                    assign_time = datetime.datetime.now()
+                    delivery.assign_time = assign_time
+                    delivery.orders_in_delivery = for_deliver
+                    db_sess.add(delivery)
+                    db_sess.commit()
+                    # --- END ---
+
+                    response['assign_time'] = assign_time.isoformat()[
+                                                                    :-4] + "Z"
+                    return make_response(jsonify(response), 201)
+                return make_response(jsonify({'orders': []}), 201)
+            else:
+                current_delivery = cour.get_current_delivery()
+                orders_list = db_sess.query(
+                    Orders.order_id).filter(
+                    Orders.delivery_id == current_delivery.delivery_id).all()
+                breakpoint()
+                response = {
+                    'orders':
+                    [{'id': order.order_id} for order in orders_list],
+                    'assign_time': current_delivery.get_str_assign_time()}
+                return make_response(jsonify(response), 201)
+    return '', '400 Bad request'
 
 
 # 5) POST /orders/complete
-@app.route('/orders/complete', methods=['POST'])
+@ app.route('/orders/complete', methods=['POST'])
 def complete_order():
     return jsonify(['Okay, ORDER COMPLETED'])
 
 # 6) GET /couriers/$courier_id
 
 
-@app.route('/couriers/<int:courier_id>', methods=['GET'])
+@ app.route('/couriers/<int:courier_id>', methods=['GET'])
 def get_courier_info(courier_id):
     db_sess = db_session.create_session()
     courier = db_sess.query(Couriers).filter(
@@ -169,11 +263,6 @@ def get_courier_info(courier_id):
 client = app.test_client()
 
 app.config['SECRET_KEY'] = os.getenv('KEY')
-
-# SCHEMAS FOR (DE)SERIALIZING DATA
-couriers_schema = CouriersSchema()
-regions_schema = RegionsSchema()
-type_schema = TransportTypesSchema()
 
 
 def main():

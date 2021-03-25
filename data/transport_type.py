@@ -24,3 +24,9 @@ class TransportTypes(SqlAlchemyBase):
 
     def __repr__(self):
         return f'Type(id={self.type_id},type={self.type_name})'
+
+    def __eq__(self, other):
+        return self.type_weight == other.type_weight
+
+    def __ne__(self, other):
+        return self.type_weight != other.type_weight

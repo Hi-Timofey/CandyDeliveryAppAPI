@@ -20,6 +20,11 @@ def convert_wh_hours_to_time(working_hours):
     return answer
 
 
+def convert_str_hours_to_wh(string_hours: list) -> str:
+    answer = json.loads(string_hours)
+    return answer
+
+
 def convert_wh_hours_to_str(working_hours: list) -> str:
     answer = json.dumps(working_hours)
     return answer
@@ -30,7 +35,8 @@ def validate_wh(working_hours: list, *cerb) -> bool:
     if cerb != ():
         working_hours = cerb[0]
 
-    s = re.compile('^[0-2]{1}[0-9]{1}:[0-9]{2}-[0-2]{1}[0-9]{1}:[0-9]{2}$')
+    s = re.compile(
+        '^[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}-[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}$')
     if not (isinstance(
             working_hours, list) and len(working_hours) > 0):
         if cerb != ():
@@ -99,9 +105,129 @@ class Couriers(SqlAlchemyBase):
     courier_delivery = orm.relation(
         'Delivery', back_populates='delivery_courier')
 
+    def get_current_delivery(self):
+        ''' Return`s current delivery of courier
+            ( Delivery he`s working on )
+        '''
+        for delivery in self.courier_delivery:
+            if delivery.delivery_complete_time is None:
+                return delivery
+
+    def change_cour_work_hours(self, new_working_hours, db_sess):
+        if new_working_hours != self.working_hours:
+            delivery = self.get_current_delivery()
+            if delivery:
+                for order in delivery.orders_in_delivery:
+                    if not self.could_he_take(
+                            order, at_time=new_working_hours):
+                        delivery.orders_in_delivery.remove(order)
+
+                if len(delivery.orders_in_delivery) == 0:
+                    db_sess.delete(delivery)
+            self.working_hours = convert_wh_hours_to_str(new_working_hours)
+            db_sess.add(self)
+            db_sess.commit()
+
+    def change_cour_regions(self, new_regions, db_sess):
+        if new_regions != self.regions:
+            delivery = self.get_current_delivery
+            if delivery:
+                for order in delivery.orders_in_delivery:
+                    if order.region not in new_regions:
+                        delivery.orders_in_delivery.remove(order)
+
+                if len(delivery.orders_in_delivery) == 0:
+                    db_sess.delete(delivery)
+            self.regions = new_regions
+            db_sess.add(self)
+            db_sess.commit()
+
+    def change_cour_type(self, new_type: TransportTypes, db_sess):
+        if new_type != self.courier_type:
+            delivery = self.get_current_delivery()
+            if delivery and delivery.assigned_courier_type != new_type:
+                for order in delivery.orders_in_delivery:
+                    if order.weight > new_type.type_weight and \
+                            order.order_complete_time is None:
+                        delivery.orders_in_delivery.remove(order)
+
+                if len(delivery.orders_in_delivery) == 0:
+                    db_sess.delete(delivery)
+            self.courier_type = new_type
+            self.courier_type_id = new_type.type_id
+            db_sess.add(self)
+            db_sess.commit()
+
+    def is_working(self) -> bool:
+        deliveries = self.courier_delivery
+        for delivery in deliveries:
+            if delivery.delivery_complete_time is None:
+                return True
+        return False
+
+    def could_he_take(self, order, at_time=None) -> bool:
+        # TODO Tests ASAP
+        if at_time:
+            work_hours = convert_wh_hours_to_time(at_time)
+        else:
+            work_hours = convert_wh_hours_to_time(
+                convert_str_hours_to_wh(
+                    at_time))
+        wh_order = order.get_delivery_time()
+
+        answer = False
+        for could in work_hours:
+            for need in wh_order:
+                a0, b0 = could
+                a1, b1 = need
+                if b0 < a1 or b1 < a0:
+                    continue
+                else:
+                    answer = True
+
+        return answer
+
     def __repr__(self):
-        return 'Courier(id="{}", type="{}", working_hours="{}", regions="{}")'.format(
+        return 'COURier(id="{}", type="{}", working_hours="{}", regions="{}")'.format(
             self.courier_id, self.courier_type, self.working_hours, self.regions)
+
+    @staticmethod
+    def validate_patch(json_data: dict) -> bool:
+        region_s = {
+                        'required': False,
+                        'type': 'list',
+                        'minlength': 0,
+                        'empty': False,
+                        'schema': {
+                            'type': 'integer',
+                            'min': 1
+                        }
+                    }
+        working_hours_s = {
+                        'required': False,
+                        'empty': False,
+                        'type': 'list',
+                        'schema': {
+                            'type': 'string',
+                            'regex': '^[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}-[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}$'
+
+                        }
+                    }
+
+        courier_type_s = {
+                        'required': False,
+                        'type': 'string',
+                        'regex': '^[a-zA-Z]+$'
+                        }
+        schema = {'courier_type': courier_type_s,
+                  'regions': region_s,
+                  'working_hours': working_hours_s}
+        v = Validator(schema)
+        if 'working_hours' in json_data.keys():
+            check_wh = validate_wh(json_data['working_hours'])
+            return v.validate(json_data) and check_wh
+        else:
+            return v.validate(json_data)
 
     @staticmethod
     def validate_regions(regions: list) -> bool:
@@ -121,6 +247,15 @@ class Couriers(SqlAlchemyBase):
         return True
 
     @staticmethod
+    def validate_assigment(json_data: dict) -> bool:
+        schema = {
+            'courier_id': {
+                'required': True,
+                'type': 'integer', 'min': 1}}
+        v = Validator(schema)
+        return v.validate(json_data)
+
+    @staticmethod
     def validate_courier_json(courier_json: dict, db) -> bool:
         cj_schema = {
             'courier_id': {
@@ -133,6 +268,7 @@ class Couriers(SqlAlchemyBase):
             'regions': {
                 'type': 'list',
                 'required': True,
+                'empty': False,
                 'minlength': 0,
                 'schema': {
                     'type': 'integer',

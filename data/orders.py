@@ -6,7 +6,7 @@ from marshmallow import fields
 import datetime
 from .db_session import SqlAlchemyBase
 from cerberus import Validator
-from .couriers import validate_wh
+from .couriers import validate_wh, convert_wh_hours_to_time, convert_str_hours_to_wh
 
 
 class Orders(SqlAlchemyBase):
@@ -28,10 +28,23 @@ class Orders(SqlAlchemyBase):
 
     order_complete_time = sa.Column(sa.DateTime, nullable=True)
 
-    # delivery_id = None
+    delivery_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey('delivery.delivery_id'),
+        nullable=True)
+
+    delivery = orm.relation(
+        'Delivery',
+        back_populates='orders_in_delivery')
 
     def __repr__(self):
-        return f'<Order id={self.order_id}>'
+        return f'ORDer(id={self.order_id}, time_to={self.delivery_time})'
+
+    def get_delivery_time(self) -> list:
+        string = self.delivery_time
+        wh = convert_str_hours_to_wh(string)
+        return convert_wh_hours_to_time(wh)
+
 
     @staticmethod
     def validate_order_json(order_json, db):

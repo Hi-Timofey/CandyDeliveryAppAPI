@@ -32,3 +32,17 @@ class Delivery(SqlAlchemyBase):
     assigned_courier_type = orm.relation(
         'TransportTypes',
         viewonly=True)
+
+    orders_in_delivery = orm.relation(
+        'Orders', back_populates='delivery')
+
+    def __repr__(self):
+        if not self.delivery_complete_time:
+            completion = '|NO|'
+        else:
+            completion = self.delivery_complete_time
+        return 'Delivery(id={}, assigned_time={}, completed={})'.format(
+            self.delivery_id, self.assign_time, completion)
+
+    def get_str_assign_time(self):
+        return self.assign_time.isoformat() + 'Z'

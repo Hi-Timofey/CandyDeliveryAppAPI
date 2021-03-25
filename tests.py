@@ -4,6 +4,7 @@ import pytest
 from datetime import time
 import os
 
+
 db_file = 'db_for_tests.sqlite'
 
 
@@ -98,6 +99,27 @@ def test_validate_wh_okay():
     for inp in input_data:
         answer = couriers.validate_wh(inp)
         assert answer
+
+
+def test_validate_patch_ok():
+    inp_d_ok = [
+        {"regions": [11, 33, 2]},
+        {"courier_type": 'foot'},
+        {"working_hours": ['11:00-12:00', '15:34-17:35']}]
+    for inp in inp_d_ok:
+        print('For input:', f'"{inp}"')
+        answer = couriers.Couriers.validate_patch(inp)
+        print('Answer is:', f'"{answer}"')
+        assert answer
+
+
+def test_validate_patch_wrong():
+    inp_d_wrong = [{}]
+    for inp in inp_d_wrong:
+        print('For input:', f'"{inp}"')
+        answer = couriers.Couriers.validate_patch(inp)
+        print('Answer is:', f'"{answer}"')
+        assert not answer
 
 
 def test_post_couriers():

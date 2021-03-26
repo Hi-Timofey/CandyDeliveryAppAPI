@@ -116,8 +116,8 @@ def patch_couriers(courier_id):
                         new_working_hours = data[key]
                         cour.change_cour_work_hours(new_working_hours, db_sess)
 
-            breakpoint()
-            return make_response(jsonify(couriers_schema.dumps(cour)), 201)
+            return make_response(
+                jsonify(Couriers.make_courier_response(cour)), 201)
     return '', '400 Bad request'
 
 
@@ -198,8 +198,6 @@ def assign_orders():
 
                 for_deliver = []
                 for order in orders:
-                    # print('Ordered:', order.delivery_time)
-                    # print('Working:', cour.working_hours)
                     if cour.could_he_take(order):
                         for_deliver.append(order)
 
@@ -242,22 +240,51 @@ def assign_orders():
     return '', '400 Bad request'
 
 
-# 5) POST /orders/complete
 @ app.route('/orders/complete', methods=['POST'])
 def complete_order():
-    return jsonify(['Okay, ORDER COMPLETED'])
+    '''
+    5) POST /orders/complete
+    '''
+    data = request.get_json()
+    db_sess = db_session.create_session()
+    if data:
+        breakpoint()
+        if Orders.validate_complete(data, db_sess):
+            order = db_sess.query(Orders).filter(
+                Orders.order_id == data['order_id']).first()
 
-# 6) GET /couriers/$courier_id
+            response = {'order_id': order.order_id}
+            complete_time = datetime.datetime.fromisoformat(
+                data['complete_time'][: -1] + '0')
+
+            if order.is_completed():
+                order.order_complete_time = complete_time
+            else:
+                return make_response(jsonify(response), 200)
+
+            db_sess.add(order)
+
+            breakpoint()
+            delivery = order.delivery
+            if delivery.is_completed():
+                delivery.delivery_complete_time = complete_time
+
+            db_sess.add(delivery)
+            db_sess.commit()
+            return make_response(jsonify(response), 200)
+    return '', '400 Bad request'
 
 
 @ app.route('/couriers/<int:courier_id>', methods=['GET'])
 def get_courier_info(courier_id):
+    '''
+    6) GET /couriers/$courier_id
+    '''
     db_sess = db_session.create_session()
     courier = db_sess.query(Couriers).filter(
         Couriers.courier_id == courier_id).first()
-    schema_courier = CouriersSchema()
-    json_courier = schema_courier.dump(courier)
-    return make_response(jsonify(json_courier))
+    response = Couriers.make_courier_response(courier)
+    return make_response(jsonify(response))
 
 
 client = app.test_client()

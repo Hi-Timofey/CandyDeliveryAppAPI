@@ -1,10 +1,11 @@
 from app import app as tested_app
 from data import db_session, couriers
+from cerberus import Validator
 import pytest
 from datetime import time
 import os
 
-
+v = Validator()
 db_file = 'db_for_tests.sqlite'
 
 

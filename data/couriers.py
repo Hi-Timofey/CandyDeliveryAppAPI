@@ -105,6 +105,20 @@ class Couriers(SqlAlchemyBase):
     courier_delivery = orm.relation(
         'Delivery', back_populates='delivery_courier')
 
+    @staticmethod
+    def make_courier_response(courier, additional=False):
+        response = {}
+        response["courier_id"] = courier.courier_id
+        response["courier_type"] = courier.courier_type.type_name
+        response["regions"] = [
+            region.region_code for region in courier.regions]
+        response["working_hours"] = convert_str_hours_to_wh(
+            courier.working_hours)
+        if additional:
+            response['rating'] = courier.rating
+            response['earnings'] = courier.earnings
+        return response
+
     def get_current_delivery(self):
         ''' Return`s current delivery of courier
             ( Delivery he`s working on )
@@ -170,6 +184,7 @@ class Couriers(SqlAlchemyBase):
         if at_time:
             work_hours = convert_wh_hours_to_time(at_time)
         else:
+            at_time = self.working_hours
             work_hours = convert_wh_hours_to_time(
                 convert_str_hours_to_wh(
                     at_time))

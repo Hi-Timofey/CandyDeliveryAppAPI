@@ -44,5 +44,13 @@ class Delivery(SqlAlchemyBase):
         return 'Delivery(id={}, assigned_time={}, completed={})'.format(
             self.delivery_id, self.assign_time, completion)
 
+    def is_completed(self) -> bool:
+        breakpoint()
+        orders = self.orders_in_delivery
+        for order in orders:
+            if order.order_complete_time is None:
+                return False
+        return True
+
     def get_str_assign_time(self):
         return self.assign_time.isoformat() + 'Z'

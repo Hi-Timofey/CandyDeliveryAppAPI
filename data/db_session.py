@@ -16,13 +16,16 @@ def _after_init_db():
         print('-'*20, 'TRANSPORT TYPES CREATING', '-'*20)
         type_0 = TransportTypes(
             type_name='foot',
-            type_weight=10)
+            type_weight=10,
+            type_earn_coefficient=2)
         type_1 = TransportTypes(
             type_name='bike',
-            type_weight=15)
+            type_weight=15,
+            type_earn_coefficient=5)
         type_2 = TransportTypes(
             type_name='car',
-            type_weight=50)
+            type_weight=50,
+            type_earn_coefficient=9)
 
         db_sess.add(type_0)
         db_sess.add(type_1)

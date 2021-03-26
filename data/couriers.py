@@ -12,7 +12,6 @@ from .db_session import SqlAlchemyBase
 
 
 def convert_wh_hours_to_time(working_hours):
-    breakpoint()
     answer = []
     for wh in working_hours:
         period = wh.split('-')
@@ -110,12 +109,18 @@ class Couriers(SqlAlchemyBase):
     # def __setattr__(self, name, value):
     #     self.__dict__[name] = value
 
+    @staticmethod
+    def count_rating_from_regions_avg(regions_avg) -> float:
+        formula = '(60*60 - min(t, 60*60))/(60*60) * 5'
+        t = min(regions_avg)
+        return eval(formula)
+
     def get_courier_wh_list(self):
         return convert_str_hours_to_wh(self.working_hours)
 
     # TODO serialize courier rename
     @staticmethod
-    def make_courier_response(courier, additional=False):
+    def make_courier_response(courier, **kwargs):
         response = {}
         response["courier_id"] = courier.courier_id
         response["courier_type"] = courier.courier_type.type_name
@@ -123,9 +128,9 @@ class Couriers(SqlAlchemyBase):
             region.region_code for region in courier.regions]
         response["working_hours"] = convert_str_hours_to_wh(
             courier.working_hours)
-        if additional:
-            response['rating'] = courier.rating
-            response['earnings'] = courier.earnings
+        if kwargs:
+            for key in kwargs:
+                response[key] = kwargs[key]
         return response
 
     def get_current_delivery(self):

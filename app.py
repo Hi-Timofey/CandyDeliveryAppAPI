@@ -90,7 +90,6 @@ def patch_couriers(courier_id):
     '''
     2) PATCH /couriers/$courier_id
     '''
-    breakpoint()
     if isinstance(courier_id, int):
         if courier_id > 0:
             data = request.get_json()
@@ -98,23 +97,29 @@ def patch_couriers(courier_id):
 
             if Couriers.validate_patch(data):
 
+                # В нём менять аттрибуты courier_type, regions, working_hours
                 cour = db_sess.query(Couriers).filter(
                         Couriers.courier_id.like(courier_id)).first()
 
+                # В словаре по ключу - аттрибут, значение - новое значение
+                # аттрибута
                 for key in data:
                     # TODO Bad perfomance
                     if isinstance(data[key], str):
-                        # cour type
+
+                        # Тип меняется вот так
                         new_type = db_sess.query(TransportTypes).filter(
                             TransportTypes.type_name == data[key]).first()
                         if new_type:
                             cour.change_cour_type(new_type, db_sess)
-                    elif isinstance(data[key], str) and \
+                    elif isinstance(data[key], list) and \
                             isinstance(data[key][0], int):
-                        # region
+                        # Регионы вот так
                         new_regions = data[key]
                         cour.change_cour_regions(new_regions, db_sess)
-                    else:
+                    elif isinstance(data[key], list) and \
+                            isinstance(data[key][0], str):
+                        # Часы вот так
                         new_working_hours = data[key]
                         cour.change_cour_work_hours(new_working_hours, db_sess)
 
@@ -233,7 +238,6 @@ def assign_orders():
                 orders_list = db_sess.query(
                     Orders.order_id).filter(
                     Orders.delivery_id == current_delivery.delivery_id).all()
-                breakpoint()
                 response = {
                     'orders':
                     [{'id': order.order_id} for order in orders_list],
@@ -250,7 +254,6 @@ def complete_order():
     data = request.get_json()
     db_sess = db_session.create_session()
     if data:
-        breakpoint()
         if Orders.validate_complete(data, db_sess):
             order = db_sess.query(Orders).filter(
                 Orders.order_id == data['order_id']).first()
@@ -259,14 +262,13 @@ def complete_order():
             complete_time = datetime.datetime.fromisoformat(
                 data['complete_time'][: -1] + '0')
 
-            if order.is_completed():
+            if not order.is_completed():
                 order.order_complete_time = complete_time
             else:
                 return make_response(jsonify(response), 200)
 
             db_sess.add(order)
 
-            breakpoint()
             delivery = order.delivery
             if delivery.is_completed():
                 delivery.delivery_complete_time = complete_time
@@ -283,10 +285,38 @@ def get_courier_info(courier_id):
     6) GET /couriers/$courier_id
     '''
     db_sess = db_session.create_session()
-    courier = db_sess.query(Couriers).filter(
-        Couriers.courier_id == courier_id).first()
-    response = Couriers.make_courier_response(courier)
-    return make_response(jsonify(response))
+    if courier_id >= 1:
+
+        courier = db_sess.query(Couriers).filter(
+            Couriers.courier_id == courier_id).first()
+
+        delivery = db_sess.query(Delivery)\
+            .filter(Delivery.delivery_complete_time is not None)\
+            .filter(Delivery.courier_id == courier_id).all()
+
+        # Counting Earnings of courier
+        earnings = 0
+        for d in delivery:
+            earnings += d.count_earning()
+        courier.earnings = earnings
+
+        add_response = {'earnings': earnings}
+        # Counting rationg of courier
+        breakpoint()
+        if len(delivery) > 0:
+            regions_avg = Regions.count_avg_time_from_orders(delivery)
+            rating = Couriers.count_rating_from_regions_avg(regions_avg)
+
+            courier.rating = rating
+            add_response['rating'] = rating
+
+        db_sess.add(courier)
+        response = Couriers.make_courier_response(
+            courier, **add_response)
+        db_sess.commit()
+        return make_response(jsonify(response))
+
+    return '', '400 Bad request'
 
 
 client = app.test_client()

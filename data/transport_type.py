@@ -14,6 +14,8 @@ class TransportTypes(SqlAlchemyBase):
 
     type_weight = sa.Column(sa.Integer, nullable=False)
 
+    type_earn_coefficient = sa.Column(sa.Integer, nullable=False)
+
     couriers_with_type = orm.relation(
         'Couriers', back_populates='courier_type')
 

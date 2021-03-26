@@ -40,6 +40,11 @@ class Orders(SqlAlchemyBase):
     def __repr__(self):
         return f'ORDer(id={self.order_id}, time_to={self.delivery_time})'
 
+
+    def count_delivery_time_sec(self, db) -> int:
+        pass
+
+
     def is_completed(self):
         return self.order_complete_time is not None
 

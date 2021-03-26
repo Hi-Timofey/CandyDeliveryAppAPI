@@ -36,6 +36,31 @@ class Delivery(SqlAlchemyBase):
     orders_in_delivery = orm.relation(
         'Orders', back_populates='delivery')
 
+    def count_earning(self) -> int:
+        if self.delivery_complete_time:
+            return self.assigned_courier_type.type_earn_coefficient * 500
+        return 0
+
+    def count_orders_delivery_time(self) -> dict:
+        # TODO Need tests
+        if self.is_completed():
+            sorted_orders = sorted(
+                self.orders_in_delivery,
+                key=lambda o: o.order_complete_time)
+            answer = {}
+            for i, so in enumerate(sorted_orders):
+                if i == 0:
+                    result = so.order_complete_time - self.assign_time
+                else:
+                    result = so.order_complete_time - \
+                        sorted_orders[i-1].order_complete_time
+                seconds = result.seconds
+                answer[so] = seconds
+        else:
+            raise ValueError(
+                'Trying to count orders delivery time for not completed delivery')
+        return answer
+
     def __repr__(self):
         if not self.delivery_complete_time:
             completion = '|NO|'
@@ -45,7 +70,6 @@ class Delivery(SqlAlchemyBase):
             self.delivery_id, self.assign_time, completion)
 
     def is_completed(self) -> bool:
-        breakpoint()
         orders = self.orders_in_delivery
         for order in orders:
             if order.order_complete_time is None:

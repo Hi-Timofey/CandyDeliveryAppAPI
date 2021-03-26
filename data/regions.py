@@ -12,7 +12,7 @@ class Regions(SqlAlchemyBase):
     region_id = sa.Column(sa.Integer,
                           primary_key=True, autoincrement=True)
 
-    region_code = sa.Column(sa.Integer, nullable=False)
+    region_code = sa.Column(sa.Integer, nullable=False, unique=True)
 
     regions_orders = orm.relation('Orders', back_populates='region')
 
@@ -26,6 +26,36 @@ class Regions(SqlAlchemyBase):
         db_session.add(self)
         db_session.commit()
         return self
+
+    def count_avg_time_from_orders(delivery, type_='list'):
+        if type_ not in ['list', 'dict']:
+            raise ValueError('Wrong output type required')
+
+        summ = {}
+        count = {}
+
+        for deliv in delivery:
+            orders_delivery_time = deliv.count_orders_delivery_time()
+            for order in orders_delivery_time:
+                region = order.region
+                if region not in summ.keys():
+                    summ[region] = orders_delivery_time[order]
+                    count[region] = 1
+
+                else:
+                    average_td[region] += ord_dev_time[order]
+                    region_count[region] += 1
+
+        if type_ == 'list':
+            answer = []
+            for region in summ:
+                answer.append(summ[region] / count[region])
+
+        elif type_ == 'dict':
+            answer = {}
+            for region in summ:
+                answer[region] = summ[region] / count[region]
+        return answer
 
 # class RegionsSchema(SQLAlchemyAutoSchema):
 #     class Meta:

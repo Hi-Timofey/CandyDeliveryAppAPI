@@ -1,6 +1,7 @@
 import sqlalchemy as sa
 from sqlalchemy import orm
 from .transport_type import TransportTypes
+from .regions import Regions
 
 import re
 import json
@@ -106,10 +107,13 @@ class Couriers(SqlAlchemyBase):
     courier_delivery = orm.relation(
         'Delivery', back_populates='delivery_courier')
 
+    # def __setattr__(self, name, value):
+    #     self.__dict__[name] = value
+
     def get_courier_wh_list(self):
         return convert_str_hours_to_wh(self.working_hours)
 
-    # TODO serialize courier
+    # TODO serialize courier rename
     @staticmethod
     def make_courier_response(courier, additional=False):
         response = {}
@@ -149,8 +153,9 @@ class Couriers(SqlAlchemyBase):
             db_sess.commit()
 
     def change_cour_regions(self, new_regions, db_sess):
-        if new_regions != self.regions:
-            delivery = self.get_current_delivery
+        old_regions = [reg.region_code for reg in self.regions]
+        if new_regions != old_regions:
+            delivery = self.get_current_delivery()
             if delivery:
                 for order in delivery.orders_in_delivery:
                     if order.region not in new_regions:
@@ -158,7 +163,11 @@ class Couriers(SqlAlchemyBase):
 
                 if len(delivery.orders_in_delivery) == 0:
                     db_sess.delete(delivery)
-            self.regions = new_regions
+
+            new_regions = set(new_regions) - set(old_regions)
+            for r in new_regions:
+                reg = Regions(region_code=r)
+                self.regions.append(reg)
             db_sess.add(self)
             db_sess.commit()
 

@@ -11,6 +11,7 @@ from .db_session import SqlAlchemyBase
 
 
 def convert_wh_hours_to_time(working_hours):
+    breakpoint()
     answer = []
     for wh in working_hours:
         period = wh.split('-')
@@ -105,6 +106,10 @@ class Couriers(SqlAlchemyBase):
     courier_delivery = orm.relation(
         'Delivery', back_populates='delivery_courier')
 
+    def get_courier_wh_list(self):
+        return convert_str_hours_to_wh(self.working_hours)
+
+    # TODO serialize courier
     @staticmethod
     def make_courier_response(courier, additional=False):
         response = {}
@@ -128,7 +133,8 @@ class Couriers(SqlAlchemyBase):
                 return delivery
 
     def change_cour_work_hours(self, new_working_hours, db_sess):
-        if new_working_hours != self.working_hours:
+        old_working_hours = self.get_courier_wh_list()
+        if new_working_hours != old_working_hours:
             delivery = self.get_current_delivery()
             if delivery:
                 for order in delivery.orders_in_delivery:

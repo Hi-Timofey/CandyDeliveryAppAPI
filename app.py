@@ -90,6 +90,7 @@ def patch_couriers(courier_id):
     '''
     2) PATCH /couriers/$courier_id
     '''
+    breakpoint()
     if isinstance(courier_id, int):
         if courier_id > 0:
             data = request.get_json()
@@ -101,6 +102,7 @@ def patch_couriers(courier_id):
                         Couriers.courier_id.like(courier_id)).first()
 
                 for key in data:
+                    # TODO Bad perfomance
                     if isinstance(data[key], str):
                         # cour type
                         new_type = db_sess.query(TransportTypes).filter(

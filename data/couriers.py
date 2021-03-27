@@ -172,6 +172,8 @@ class Couriers(SqlAlchemyBase):
                     if order.region.region_code not in new_regions:
                         delivery.orders_in_delivery.remove(order)
 
+                if delivery.is_completed():
+                    print('completed delivery')
                 if len(delivery.orders_in_delivery) == 0:
                     db_sess.delete(delivery)
                     db_sess.commit()
@@ -200,6 +202,8 @@ class Couriers(SqlAlchemyBase):
                             order.order_complete_time is None:
                         delivery.orders_in_delivery.remove(order)
 
+                if delivery.is_completed():
+                    print('completed delivery')
                 if len(delivery.orders_in_delivery) == 0:
                     db_sess.delete(delivery)
                     db_sess.commit()

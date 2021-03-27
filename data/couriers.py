@@ -111,9 +111,9 @@ class Couriers(SqlAlchemyBase):
 
     @staticmethod
     def count_rating_from_regions_avg(regions_avg) -> float:
-        formula = '(60*60 - min(t, 60*60))/(60*60) * 5'
         t = min(regions_avg)
-        return eval(formula)
+        answer = (60*60 - min(t, 60*60))/(60*60) * 5
+        return answer
 
     def get_courier_wh_list(self):
         return convert_str_hours_to_wh(self.working_hours)
@@ -227,7 +227,9 @@ class Couriers(SqlAlchemyBase):
             self.courier_id, self.courier_type, self.working_hours, self.regions)
 
     @staticmethod
-    def validate_patch(json_data: dict) -> bool:
+    def validate_patch(json_data: dict, db_sess) -> bool:
+        if not isinstance(json_data, dict) or json_data == {}:
+            return False
         region_s = {
                         'required': False,
                         'type': 'list',
@@ -258,11 +260,23 @@ class Couriers(SqlAlchemyBase):
                   'regions': region_s,
                   'working_hours': working_hours_s}
         v = Validator(schema)
-        if 'working_hours' in json_data.keys():
-            check_wh = validate_wh(json_data['working_hours'])
-            return v.validate(json_data) and check_wh
+
+        if v.validate(json_data):
+
+            if 'working_hours' in json_data.keys():
+                check_wh = validate_wh(json_data['working_hours'])
+            else:
+                check_wh = True
+
+            if 'courier_type' in json_data.keys():
+                check_type = TransportTypes.type_exist(
+                    json_data['courier_type'], db_sess)
+            else:
+                check_type = True
+
+            return check_wh and check_type
         else:
-            return v.validate(json_data)
+            return False
 
     @staticmethod
     def validate_regions(regions: list) -> bool:
@@ -320,13 +334,15 @@ class Couriers(SqlAlchemyBase):
 
                 query_type = db.query(
                     TransportTypes.type_name).filter(
-                    TransportTypes.type_name.like(types))
+                    TransportTypes.type_name.like(types)).first()[0]
 
                 query_id = db.query(Couriers).filter(
                     Couriers.courier_id == i).first()
 
                 return query_id is None and validate_wh(
-                    wh) and Couriers.validate_regions(r) and (types,) in query_type
+                    wh) and Couriers.validate_regions(r) and types in query_type
+            except TypeError as te:
+                raise ValueError(f'No such type "{types}" of couriers')
             except BaseException as be:
                 raise ValueError('Something went wrong - ' + str(be))
         else:

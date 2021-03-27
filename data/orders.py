@@ -7,6 +7,7 @@ import datetime
 from .db_session import SqlAlchemyBase
 from cerberus import Validator
 from .couriers import validate_wh, convert_wh_hours_to_time, convert_str_hours_to_wh
+from .regions import Regions
 
 
 class Orders(SqlAlchemyBase):

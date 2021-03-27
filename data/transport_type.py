@@ -32,3 +32,8 @@ class TransportTypes(SqlAlchemyBase):
 
     def __ne__(self, other):
         return self.type_weight != other.type_weight
+
+    @staticmethod
+    def type_exist(type_name, db_sess) -> bool:
+        query = db_sess.query(TransportTypes.type_name).all()
+        return (type_name,) in query

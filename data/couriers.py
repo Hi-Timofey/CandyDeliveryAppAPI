@@ -140,6 +140,7 @@ class Couriers(SqlAlchemyBase):
         for delivery in self.courier_delivery:
             if delivery.delivery_complete_time is None:
                 return delivery
+        return None
 
     def change_cour_work_hours(self, new_working_hours, db_sess):
         old_working_hours = self.get_courier_wh_list()
@@ -147,10 +148,14 @@ class Couriers(SqlAlchemyBase):
             delivery = self.get_current_delivery()
             if delivery:
                 for order in delivery.orders_in_delivery:
-                    if not self.could_he_take(
-                            order, at_time=new_working_hours):
-                        delivery.orders_in_delivery.remove(order)
+                    if not order.is_completed():
+                        if not self.could_he_take(
+                                order, at_time=new_working_hours):
+                            delivery.orders_in_delivery.remove(order)
+                            order.delivery_id = None
 
+                if delivery.is_completed():
+                    print('completed delivery')
                 if len(delivery.orders_in_delivery) == 0:
                     db_sess.delete(delivery)
             self.working_hours = convert_wh_hours_to_str(new_working_hours)
@@ -158,21 +163,31 @@ class Couriers(SqlAlchemyBase):
             db_sess.commit()
 
     def change_cour_regions(self, new_regions, db_sess):
-        old_regions = [reg.region_code for reg in self.regions]
+        old_regions = {reg.region_code for reg in self.regions}
+        new_regions = set(new_regions)
         if new_regions != old_regions:
             delivery = self.get_current_delivery()
             if delivery:
                 for order in delivery.orders_in_delivery:
-                    if order.region not in new_regions:
+                    if order.region.region_code not in new_regions:
                         delivery.orders_in_delivery.remove(order)
 
                 if len(delivery.orders_in_delivery) == 0:
                     db_sess.delete(delivery)
+                    db_sess.commit()
 
-            new_regions = set(new_regions) - set(old_regions)
-            for r in new_regions:
-                reg = Regions(region_code=r)
+            exists_in_db = db_sess.query(
+                Regions.region_code, Regions).filter(
+                Regions.region_code.in_(new_regions)).all()
+            exists_set = {r[0] for r in exists_in_db}
+            not_exists_set = new_regions - exists_set
+            self.regions = []
+            for code, reg in exists_in_db:
                 self.regions.append(reg)
+            for ne in not_exists_set:
+                new_reg = Regions(region_code=ne)
+                self.regions.append(new_reg)
+
             db_sess.add(self)
             db_sess.commit()
 
@@ -187,6 +202,7 @@ class Couriers(SqlAlchemyBase):
 
                 if len(delivery.orders_in_delivery) == 0:
                     db_sess.delete(delivery)
+                    db_sess.commit()
             self.courier_type = new_type
             self.courier_type_id = new_type.type_id
             db_sess.add(self)
@@ -200,7 +216,9 @@ class Couriers(SqlAlchemyBase):
         return False
 
     def could_he_take(self, order, at_time=None) -> bool:
-        # TODO Tests ASAP
+
+        if order.is_completed():
+            raise ValueError('Trying to take/check completed order')
         if at_time:
             work_hours = convert_wh_hours_to_time(at_time)
         else:
@@ -210,58 +228,63 @@ class Couriers(SqlAlchemyBase):
                     at_time))
         wh_order = order.get_delivery_time()
 
-        answer = False
         for could in work_hours:
             for need in wh_order:
                 a0, b0 = could
                 a1, b1 = need
-                if b0 < a1 or b1 < a0:
+                if b0 <= a1 or b1 <= a0:
                     continue
                 else:
-                    answer = True
+                    return True
 
-        return answer
+        return False
 
     def __repr__(self):
         return 'COURier(id="{}", type="{}", working_hours="{}", regions="{}")'.format(
             self.courier_id, self.courier_type, self.working_hours, self.regions)
 
     @staticmethod
-    def validate_patch(json_data: dict, db_sess) -> bool:
+    def validate_patch(json_data: dict, db_sess, logger=None) -> bool:
         if not isinstance(json_data, dict) or json_data == {}:
             return False
-        region_s = {
-                        'required': False,
-                        'type': 'list',
-                        'minlength': 0,
-                        'empty': False,
-                        'schema': {
-                            'type': 'integer',
-                            'min': 1
-                        }
-                    }
         working_hours_s = {
-                        'required': False,
-                        'empty': False,
-                        'type': 'list',
-                        'schema': {
-                            'type': 'string',
-                            'regex': '^[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}-[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}$'
-
-                        }
-                    }
+            'working_hours': {
+                'empty': False,
+                'type': 'list',
+                'schema': {
+                    'type': 'string',
+                    'regex': '^[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}-[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}$'}}}
 
         courier_type_s = {
-                        'required': False,
-                        'type': 'string',
-                        'regex': '^[a-zA-Z]+$'
+            'courier_type': {'type': 'string',
+                             'regex': '^[a-zA-Z]+$'}
                         }
-        schema = {'courier_type': courier_type_s,
-                  'regions': region_s,
-                  'working_hours': working_hours_s}
-        v = Validator(schema)
+        regions_s = {'regions': {'type': 'list',
+                                 'minlength': 0,
+                                 'empty': False,
+                                 'schema': {
+                                     'type': 'integer',
+                                     'min': 1
+                                     }}
+                     }
+        v = Validator()
+        if len(json_data) == 1:
+            res = any([
+                v.validate(json_data, regions_s),
+                v.validate(json_data, working_hours_s),
+                v.validate(json_data, courier_type_s)])
+        elif len(json_data) == 2:
+            res = any([
+                v.validate(json_data, {**courier_type_s, **regions_s}),
+                v.validate(json_data, {**working_hours_s, **regions_s}),
+                v.validate(json_data, {**working_hours_s, **courier_type_s})])
+        elif len(json_data) == 3:
+            res = v.validate(
+                json_data, {**courier_type_s, **working_hours_s, **regions_s})
+        else:
+            raise BaseException('wtf')
 
-        if v.validate(json_data):
+        if res:
 
             if 'working_hours' in json_data.keys():
                 check_wh = validate_wh(json_data['working_hours'])
@@ -276,36 +299,25 @@ class Couriers(SqlAlchemyBase):
 
             return check_wh and check_type
         else:
+            if logger:
+                if v.errors != {}:
+                    logger.info(f'PATCH error: {v.errors}')
+                else:
+                    logger.info('PATCH error: ', "wrong input data")
             return False
 
-    @staticmethod
-    def validate_regions(regions: list) -> bool:
-        if not isinstance(regions, list):
-            return False
-        for r in regions:
-            try:
-                if isinstance(r, bool) or not isinstance(r, int):
-                    return False
-                if r <= 0:
-                    return False
-                if regions.count(r) > 1:
-                    return False
-            except TypeError as te:
-                return False
-
-        return True
-
-    @staticmethod
+    @ staticmethod
     def validate_assigment(json_data: dict) -> bool:
         schema = {
             'courier_id': {
                 'required': True,
                 'type': 'integer', 'min': 1}}
         v = Validator(schema)
-        return v.validate(json_data)
+        res = v.validate(json_data)
+        return res
 
-    @staticmethod
-    def validate_courier_json(courier_json: dict, db) -> bool:
+    @ staticmethod
+    def validate_courier_json(courier_json: dict, db, logger=None) -> bool:
         cj_schema = {
             'courier_id': {
                 'required': True,
@@ -315,13 +327,15 @@ class Couriers(SqlAlchemyBase):
                 'type': 'string',
                 'regex': '^[a-zA-Z]+$'},
             'regions': {
-                'type': 'list',
-                'required': True,
-                'empty': False,
-                'minlength': 0,
-                'schema': {
-                    'type': 'integer',
-                    'min': 1}},
+                      'required': True,
+                      'type': 'list',
+                      'minlength': 0,
+                      'empty': False,
+                      'schema': {
+                          'type': 'integer',
+                          'min': 1
+                          }
+                      },
             'working_hours': {'type': 'list'}}
         cour_valid = Validator(cj_schema)
 
@@ -340,10 +354,13 @@ class Couriers(SqlAlchemyBase):
                     Couriers.courier_id == i).first()
 
                 return query_id is None and validate_wh(
-                    wh) and Couriers.validate_regions(r) and types in query_type
+                    wh) and types in query_type
             except TypeError as te:
-                raise ValueError(f'No such type "{types}" of couriers')
+                print(f'NO SUCH TYPE "{types}" of couriers')
+                return False
             except BaseException as be:
                 raise ValueError('Something went wrong - ' + str(be))
         else:
-            return False  # cour_valid.errors
+            if logger:
+                logger.info(cour_valid.errors)
+            return False

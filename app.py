@@ -39,7 +39,8 @@ def post_couriers():
     valid_couriers = []
     for courier_json in couriers_list:
 
-        if Couriers.validate_courier_json(courier_json, db_sess):
+        if Couriers.validate_courier_json(
+                courier_json, db_sess, logger=app.logger):
             courier_json['working_hours'] = convert_wh_hours_to_str(
                 courier_json['working_hours'])
             courier_json['courier_type'] = db_sess.query(
@@ -95,36 +96,34 @@ def patch_couriers(courier_id):
             data = request.get_json()
             db_sess = db_session.create_session()
 
-            if Couriers.validate_patch(data, db_sess):
+            if Couriers.validate_patch(data, db_sess, logger=app.logger):
 
-                # В нём менять аттрибуты courier_type, regions, working_hours
                 cour = db_sess.query(Couriers).filter(
                         Couriers.courier_id.like(courier_id)).first()
 
-                # В словаре по ключу - аттрибут, значение - новое значение
-                # аттрибута
                 for key in data:
-                    # TODO Bad perfomance
+                    # TODO Bad perfomance, change with getattr/setattr(?) or
+                    # property function
                     if isinstance(data[key], str):
 
-                        # Тип меняется вот так
                         new_type = db_sess.query(TransportTypes).filter(
                             TransportTypes.type_name == data[key]).first()
                         if new_type:
                             cour.change_cour_type(new_type, db_sess)
-                    elif isinstance(data[key], list) and \
-                            isinstance(data[key][0], int):
-                        # Регионы вот так
+
+                    elif isinstance(data[key][0], int):
+
                         new_regions = data[key]
                         cour.change_cour_regions(new_regions, db_sess)
-                    elif isinstance(data[key], list) and \
-                            isinstance(data[key][0], str):
-                        # Часы вот так
+
+                    elif isinstance(data[key][0], str):
+
                         new_working_hours = data[key]
+                        breakpoint()
                         cour.change_cour_work_hours(new_working_hours, db_sess)
 
-            return make_response(
-                jsonify(Couriers.make_courier_response(cour)), 201)
+                return make_response(
+                    jsonify(Couriers.make_courier_response(cour)), 201)
     return '', '400 Bad request'
 
 
@@ -146,7 +145,7 @@ def set_orders():
     valid_orders = []
     for order_json in orders_list:
 
-        if Orders.validate_order_json(order_json, db_sess):
+        if Orders.validate_order_json(order_json, db_sess, logger=app.logger):
             if ve:
                 continue
             order = Orders()
@@ -197,6 +196,7 @@ def assign_orders():
 
     if data is not None:
         if Couriers.validate_assigment(data):
+            breakpoint()
             courier_id = data['courier_id']
 
             cour = db_sess.query(Couriers).filter(
@@ -206,7 +206,7 @@ def assign_orders():
 
                 regions = [reg.region_id for reg in cour.regions]
 
-                orders = db_sess.query(Orders).filter(
+                orders = db_sess.query(Orders).filter(Orders.order_complete_time == None).filter(
                     Orders.weight <= cour.courier_type.type_weight,
                     Orders.region_id.in_(regions)
                 ).all()
@@ -242,15 +242,22 @@ def assign_orders():
                     return make_response(jsonify(response), 201)
                 return make_response(jsonify({'orders': []}), 201)
             else:
-                current_delivery = cour.get_current_delivery()
-                orders_list = db_sess.query(
-                    Orders.order_id).filter(
-                    Orders.delivery_id == current_delivery.delivery_id).all()
-                response = {
-                    'orders':
-                    [{'id': order.order_id} for order in orders_list],
-                    'assign_time': current_delivery.get_str_assign_time()}
-                return make_response(jsonify(response), 201)
+                try:
+                    current_delivery = cour.get_current_delivery()
+                    orders_list = db_sess.query(
+                        Orders.order_id).filter(
+                        Orders.delivery_id
+                        == current_delivery.delivery_id).filter(
+                        Orders.order_complete_time == None
+                        ).all()
+                    response = {
+                        'orders':
+                        [{'id': order.order_id} for order in orders_list],
+                        'assign_time': current_delivery.get_str_assign_time()}
+                    return make_response(jsonify(response), 201)
+                except BaseException:
+                    app.logger.exception('/assign can`t show any information.')
+                    return '', '400 Bad request'
     return '', '400 Bad request'
 
 
@@ -263,6 +270,7 @@ def complete_order():
     db_sess = db_session.create_session()
     if data:
         if Orders.validate_complete(data, db_sess):
+            breakpoint()
             order = db_sess.query(Orders).filter(
                 Orders.order_id == data['order_id']).first()
 
@@ -298,42 +306,41 @@ def get_courier_info(courier_id):
         courier = db_sess.query(Couriers).filter(
             Couriers.courier_id == courier_id).first()
 
-        delivery = db_sess.query(Delivery)\
-            .filter(Delivery.delivery_complete_time is not None)\
-            .filter(Delivery.courier_id == courier_id).all()
+        if courier:
+            delivery = db_sess.query(Delivery)\
+                .filter(Delivery.delivery_complete_time is not None)\
+                .filter(Delivery.courier_id == courier_id).all()
 
-        # Counting Earnings of courier
-        earnings = 0
-        for d in delivery:
-            earnings += d.count_earning()
-        courier.earnings = earnings
+            # Counting Earnings of courier
+            earnings = 0
+            for d in delivery:
+                earnings += d.count_earning()
+            courier.earnings = earnings
 
-        add_response = {'earnings': earnings}
-        # Counting rationg of courier
-        if len(delivery) > 0:
-            regions_avg = Regions.count_avg_time_from_orders(delivery)
-            rating = Couriers.count_rating_from_regions_avg(regions_avg)
+            add_response = {'earnings': earnings}
+            # Counting rationg of courier
+            if len(delivery) > 0:
+                regions_avg = Regions.count_avg_time_from_orders(delivery)
+                if len(regions_avg) != 0:
+                    rating = Couriers.count_rating_from_regions_avg(regions_avg)
 
-            courier.rating = rating
-            add_response['rating'] = rating
+                    courier.rating = rating
+                    add_response['rating'] = rating
 
-        db_sess.add(courier)
-        response = Couriers.make_courier_response(
-            courier, **add_response)
-        db_sess.commit()
-        return make_response(jsonify(response))
+            db_sess.add(courier)
+            response = Couriers.make_courier_response(
+                courier, **add_response)
+            db_sess.commit()
+            return make_response(jsonify(response))
 
     return '', '400 Bad request'
-
-
-app.config['SECRET_KEY'] = os.getenv('KEY')
 
 
 def main(debug=False):
     # Preparing db and run app
     db_session.global_init_sqlite('db.sqlite')
-    app.run(debug=debug)
-
+    app.config.from_envvar('API_CONFIG')
+    app.run()
 
 
 if __name__ == '__main__':

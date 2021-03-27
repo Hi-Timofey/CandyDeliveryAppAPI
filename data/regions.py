@@ -35,16 +35,17 @@ class Regions(SqlAlchemyBase):
         count = {}
 
         for deliv in delivery:
-            orders_delivery_time = deliv.count_orders_delivery_time()
-            for order in orders_delivery_time:
-                region = order.region
-                if region not in summ.keys():
-                    summ[region] = orders_delivery_time[order]
-                    count[region] = 1
+            if deliv.delivery_complete_time is not None:
+                orders_delivery_time = deliv.count_orders_delivery_time()
+                for order in orders_delivery_time:
+                    region = order.region
+                    if region not in summ.keys():
+                        summ[region] = orders_delivery_time[order]
+                        count[region] = 1
 
-                else:
-                    average_td[region] += ord_dev_time[order]
-                    region_count[region] += 1
+                    else:
+                        average_td[region] += ord_dev_time[order]
+                        region_count[region] += 1
 
         if type_ == 'list':
             answer = []
@@ -56,9 +57,3 @@ class Regions(SqlAlchemyBase):
             for region in summ:
                 answer[region] = summ[region] / count[region]
         return answer
-
-# class RegionsSchema(SQLAlchemyAutoSchema):
-#     class Meta:
-#         model = Regions
-#         include_relationships = True
-#         load_instance = True

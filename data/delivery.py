@@ -36,6 +36,10 @@ class Delivery(SqlAlchemyBase):
     orders_in_delivery = orm.relation(
         'Orders', back_populates='delivery')
 
+    def set_completed_time(self, db_sess):
+        db_sess.query(Orders).filter(Orders.delivery == self).all()
+        breakpoint()
+
     def count_earning(self) -> int:
         if self.delivery_complete_time:
             return self.assigned_courier_type.type_earn_coefficient * 500
@@ -70,10 +74,11 @@ class Delivery(SqlAlchemyBase):
             self.delivery_id, self.assign_time, completion)
 
     def is_completed(self) -> bool:
-        orders = self.orders_in_delivery
+        orders = sorted(self.orders_in_delivery,key=lambda x: x.order_complete_time)
         for order in orders:
             if order.order_complete_time is None:
                 return False
+        self.delivery_complete_time = orders[-1].order_complete_time
         return True
 
     def get_str_assign_time(self):

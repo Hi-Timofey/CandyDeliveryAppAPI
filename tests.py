@@ -1,13 +1,16 @@
 from app import app as tested_app
-from data import db_session, couriers, transport_type
+from data import db_session, couriers, transport_type, orders, regions
 from cerberus import Validator
 import pytest
+from random import randint
 from datetime import time
 import os
 
 v = Validator()
 db_file = 'db_for_tests.sqlite'
 db_session.global_init_sqlite(db_file)
+
+client = tested_app.test_client()
 
 
 type_0 = transport_type.TransportTypes(
@@ -30,7 +33,6 @@ def clear_db():
 
 def get_test_db():
     session = db_session.create_session()
-    print('-'*10, session.bind.url.database, 'IS DB', '-'*10)
     return session
 
 
@@ -72,30 +74,13 @@ def test_convert_wh_hours_to_str():
         assert out == answer
 
 
-def test_validate_regions_wrong():
-    input_bad_data = [
-        '', 1, [-1], [[], []], None, [4, True, 12], [1, ''], [14, 4, -5],
-        [123, 'a', 213],
-        [1, 2, 3, 4, 4, 4]
-    ]
-    for inp in input_bad_data:
-        print('For input:', f'"{inp}"')
-        answer = couriers.Couriers.validate_regions(inp)
-        print('Answer is:', f'"{answer}"')
-        assert not answer
-
-
-def test_validate_regions_okay():
-    input_okay_data = [[1, 2, 3], [12, 23, 123], [35, 30]]
-    for inp in input_okay_data:
-        answer = couriers.Couriers.validate_regions(inp)
-        assert answer
-
-
 def test_validate_wh_wrong():
     input_bad_data = [
         '', 1, [], [[], []], None, ['', ''], ['ab:00-12:00'], ['01:00-23:a0'],
         ['01:0o-23:00'],
+        ['11:80-13:00'],
+        ['11:00-13:60'],
+        ['11:00-25:60'],
         ['01:00:23:00']
     ]
     for inp in input_bad_data:
@@ -157,7 +142,7 @@ def test_validate_patch_wrong():
                    {"region": ''},
                    {"region": None},
                    {"courier_type": 1},
-                   {"courier_type": 'feet'},
+                   {"courier_type": 'feot'},
                    {"courier_typ": ['foot']},
                    {"courier_typ": None},
                    {"working_hous": ['11:00-12:00', '15:34-17:35']},
@@ -190,10 +175,56 @@ def test_could_he_take():
         assert answer
 
 
+def test_post_couriers_wrong():
+    session = get_test_db()
+    data = [
+        {'data': [{
+                    "courier_id": 400,
+                    "courier_type": "bike",
+                    "regions": [-22],
+                    "working_hours": ["09:00-18:00"]
+                 }]},
+        {'data': [{
+                    "courier_id": 400,
+                    "courier_type": "biki",
+                    "regions": [22],
+                    "working_hours": ["09:00-18:00"]
+                 }]},
+        {'data': [{
+                    "courier_id": 400,
+                    "courier_type": "bike",
+                    "regions": "22",
+                    "working_hours": ["09:00-18:00"]
+                 }]},
+        {'data': [{
+                    "courier_id": 400,
+                    "courier_type": "bike",
+                    "regions": [22],
+                    "working_hours": ["19:00-18:00"]
+                 }]},
+        {'data': [{
+                    "courier_id": 400,
+                    "courier_type": "bike",
+                    "regions": [22],
+                    "working_hours": [""]
+                 }]},
+    ]
+    data_r = {
+        "validation_error": {
+            "couriers": [{"id": 400}]
+            }
+        }
+
+    for inp in data:
+
+        res = client.post('/couriers', json=inp)
+        assert res.status_code == 400
+        assert res.get_json() == data_r
+
+
 def test_post_couriers():
     session = get_test_db()
-    client = tested_app.test_client()
-    data = {
+    data = [{
         'data': [
                  {
                     "courier_id": 1,
@@ -208,129 +239,310 @@ def test_post_couriers():
                     "working_hours": ["09:00-18:00"]
                  }
                ]
-    }
+    }]
     data_r = {
         "couriers": [{"id": 1}, {"id": 2}]
     }
 
-    res = client.post('/couriers', json=data)
-    assert res.status_code == 201
+    for inp in data:
 
-    # json = res.get_json()
-    # assert json['couriers']
-    # assert isinstance(json['couriers'], list)
-    # assert len(json['couriers']) == 2
-
-    # assert json['couriers'][0]['id'] == data_r['couriers'][0]['id']
-    # assert json['couriers'][1]['id'] == data_r['couriers'][1]['id']
-    # assert isinstance(
-    #     json['couriers'][0]['id'], type(
-    #         data['data'][0]['courier_id']))
-    # assert isinstance(
-    #     json['couriers'][1]['id'], type(
-    #         data['data'][1]['courier_id']))
-
-    # assert isinstance(
-    #     json['couriers'][0]['id'], type(
-    #         data_r['couriers'][0]['id']))
-    # assert isinstance(
-    #     json['couriers'][1]['id'], type(
-    #         data_r['couriers'][1]['id']))
-
-    # res = client.post('/couriers', json=data)
-    # assert res.status_code == 400
-    # assert res.get_json()['validation_error']
-    # json = res.get_json()['validation_error']
-
-    # assert json['couriers']
-    # assert isinstance(json['couriers'], list)
-    # assert len(json['couriers']) == 2
-
-    # assert json['couriers'][0]['id'] == 1
-    # assert json['couriers'][1]['id'] == 2
-    # assert isinstance(
-    #     json['couriers'][0]['id'], type(
-    #         data['data'][0]['courier_id']))
-    # assert isinstance(
-    #     json['couriers'][1]['id'], type(
-    #         data['data'][1]['courier_id']))
-
-    # assert isinstance(
-    #     json['couriers'][0]['id'], type(
-    #         data_r['couriers'][0]['id']))
-    # assert isinstance(
-    #     json['couriers'][1]['id'], type(
-    #         data_r['couriers'][1]['id']))
+        res = client.post('/couriers', json=inp)
+        assert res.status_code == 201
+        assert res.get_json() == data_r
 
 
 def test_post_orders():
-
     session = get_test_db()
 
-    client = tested_app.test_client()
-    data = {'data':
-            [
-                {
-                    "order_id": 1,
-                    "weight": 0.23,
-                    "region": 1,
-                    "delivery_hours": ["11:35-14:05", "09:00-11:00"]
+    data = [{
+        "data": [
+            {
+                "order_id": 11,
+                "weight": 1.11,
+                "region": 11,
+                "delivery_hours": [
+                    "00:11-11:11"
+                    ]
                 },
+            {
+                "order_id": 22,
+                "weight": 12,
+                "region": 22,
+                "delivery_hours": [
+                    "02:00-12:22"
+                    ]
+                },
+            {
+                "order_id": 33,
+                "weight": 41,
+                "region": 33,
+                "delivery_hours": [
+                    "03:00-13:00",
+                    "16:00-23:30"
+                    ]
+                }
+            ]
+        }, {
+        "data": [
+            {
+                "order_id": 1,
+                "weight": 1.11,
+                "region": 1,
+                "delivery_hours": [
+                    "00:11-11:11"
+                    ]
+                },
+            {
+                "order_id": 2,
+                "weight": 12,
+                "region": 2,
+                "delivery_hours": [
+                    "02:00-12:22"
+                    ]
+                },
+            {
+                "order_id": 3,
+                "weight": 41,
+                "region": 3,
+                "delivery_hours": [
+                    "03:00-13:00",
+                    "16:00-23:30"
+                    ]
+                }
+            ]
+        }]
+    data_r = [{
+        "orders": [{"id": 11}, {"id": 22}, {"id": 33}, ]
+    }, {
+        "orders": [{"id": 1}, {"id": 2}, {"id": 3}, ]
+    }]
+
+    for i in range(len(data)):
+
+        inp = data[i]
+        out = data_r[i]
+
+        res = client.post('/orders', json=inp)
+
+        assert res.status_code == 201
+        json = res.get_json()
+
+        assert json == out
+
+
+def test_post_orders_wrong():
+    session = get_test_db()
+
+    data = [{
+            "data": [
                 {
-                    "order_id": 2,
-                    "weight": 43,
-                    "region": 2,
-                    "delivery_hours": ["09:00-18:00"]
-                }]
+                    "order_id": 1001,
+                    "weight": 1.11,
+                    "region": -5,
+                    "delivery_hours": [
+                        "00:11-11:11"
+                    ]
+                }
+            ]
+            }, {
+            "data": [
+                {
+                    "order_id": 1001,
+                    "weight": 1.11,
+                    "region": "11",
+                    "delivery_hours": [
+                        "00:11-11:11"
+                    ]
+                }
+            ]
+            },
 
-            }
+            {
+            "data": [
+                {
+                    "order_id": 1001,
+                    "weight": 1.11,
+                    "region": 11,
+                    "delivery_hours": [
+                        "12:11-11:11"
+                    ]
+                }
+            ]
+            },
+            {
+        "data": [
+            {
+                "order_id": 1001,
+                "weight": 34,
+                "region": 2000,
+                "delivery_hours": [
+                    "12:11-11:11"
+                    ]
+                }
+            ]
+        }
+            ]
     data_r = {
-        "orders": [{"id": 1}, {"id": 2}]
-    }
+        "validation_error": {
+            "orders": [{"id": 1001}]
+            }
+        }
 
-    res = client.post('/orders', json=data)
+    for i in range(len(data)):
 
+        inp = data[i]
+
+        res = client.post('/orders', json=inp)
+
+        print(f'TESTING DATA[{i}]:', end='\t')
+
+        assert res.status_code == 400
+
+        print(f'status {res.status_code}', end='\t')
+
+        json = res.get_json()
+        assert json == data_r
+
+        print(f'ALL OK')
+
+
+def test_patch_couriers():
+    session = get_test_db()
+    data = [
+        (1, {"courier_type": "foot",
+             "regions": [1, 12, 22],
+             "working_hours": ["11:35-14:05", "09:00-11:00"]
+             }),
+        (2, {"courier_type": "bike",
+             "regions": [22],
+             "working_hours": ["09:00-18:00"]
+             }),
+        (1, {"courier_type": "car",
+             "regions": [212],
+             }),
+        (2, {"working_hours": ["04:00-10:00"]
+             }),
+    ]
+    data_r = [
+        {"courier_id": 1,
+            "courier_type": "foot",
+            "regions": [1, 12, 22],
+            "working_hours": ["11:35-14:05", "09:00-11:00"]},
+        {"courier_id": 2,
+            "courier_type": "bike",
+            "regions": [22],
+            "working_hours": ["09:00-18:00"]},
+        {"courier_id": 1,
+            "courier_type": "car",
+            "regions": [212],
+            "working_hours": ["11:35-14:05", "09:00-11:00"]},
+        {"courier_id": 2,
+            "courier_type": "bike",
+            "regions": [22],
+            "working_hours": ["04:00-10:00"]}
+    ]
+
+    for i in range(len(data)):
+        id_, inp = data[i]
+        res = client.patch(f'/couriers/{id_}', json=inp)
+        assert res.status_code == 201
+        assert res.get_json() == data_r[i]
+
+
+def test_patch_couriers_wrong():
+    session = get_test_db()
+    data = [
+        (1, {"courier_type": "feot",
+             "regions": [1, 12, 22],
+             "working_hours": ["11:35-14:05", "09:00-11:00"]
+             }),
+        (2, {"courier_type": "bike",
+             "regions": [-22],
+             "working_hours": ["09:00-18:00"]
+             }),
+        (1, {"courier_type": "car",
+             "regions": 212,
+             }),
+        (2, {"working_hours": ["14:00-10:00"]
+             }),
+        (2, {"woking_hours": ["14:00-10:00"]
+             })
+    ]
+
+    for i in range(len(data)):
+        id_, inp = data[i]
+        print(f'TESTING DATA[{i}]: {inp}', end='\t')
+        res = client.patch(f'/couriers/{id_}', json=inp)
+        assert res.status_code == 400
+
+
+def test_assigment():
+    session = get_test_db()
+    cour_id = randint(2058, 3000)
+    # adding courier for delivery
+    cours = {'data': [
+                 {
+                    "courier_id": cour_id,
+                    "courier_type": "bike",
+                    "regions": [2058, 3000],
+                    "working_hours": ["10:00-14:00", "16:00-19:00"]
+                 }
+               ]
+             }
+    cour_req = client.post('/couriers', json=cours)
+    assert cour_req.status_code == 201
+
+    # adding orders ( odd id - okay order; not odd - wrong )
+    ords = {
+        "data": [
+            {
+                "order_id": 2500,
+                "weight": 11.11,
+                "region": 2058,
+                "delivery_hours": [
+                    "10:11-11:11", "16:55-17:10"
+                    ]
+                },
+            {
+                "order_id": 2502,
+                "weight": 12,
+                "region": 3000,
+                "delivery_hours": [
+                    "13:45-14:22"
+                    ]
+                },
+            {"order_id": 2501,
+                "weight": 10,
+                "region": 2058,
+                "delivery_hours": [
+                    "19:00-23:30",  # wrong time
+                    "09:00-10:00"
+                    ]},
+            {"order_id": 2503,
+                "weight": 10,
+                "region": 4,  # wrong region
+                "delivery_hours": [
+                    "16:00-23:30"
+                    ]},
+            {"order_id": 2059,
+                "weight": 41,  # wrong weight
+                "region": 2058,
+                "delivery_hours": [
+                    "03:00-13:00",
+                    "16:00-23:30"
+                    ]}
+            ]
+        }
+
+    valid_orders = [{'id': 2500}, {'id': 2502}]
+
+    ords_req = client.post('/orders', json=ords)
+    assert ords_req.status_code == 201
+
+    res = client.post(f'/orders/assign', json={'courier_id': cour_id})
     assert res.status_code == 201
 
-    # json = res.get_json()
-    # assert json['orders']
-    # assert isinstance(json['orders'], list)
-    # assert len(json['orders']) == 2
-
-    # assert json['orders'][0]['id'] == data_r['orders'][0]['id']
-    # assert json['orders'][1]['id'] == data_r['orders'][1]['id']
-
-    # assert isinstance(
-    #     json['orders'][0]['id'], type(
-    #         data_r['orders'][0]['id']))
-    # assert isinstance(
-    #     json['orders'][1]['id'], type(
-    #         data_r['orders'][1]['id']))
-
-    # res = client.post('/orders', json=data)
-    # assert res.status_code == 400
-    # assert res.get_json()['validation_error']
-    # json = res.get_json()['validation_error']
-
-    # assert json['orders']
-    # assert isinstance(json['orders'], list)
-    # assert len(json['orders']) == 2
-
-    # assert json['orders'][0]['id'] == 1
-    # assert json['orders'][1]['id'] == 2
-    # assert isinstance(
-    #     json['orders'][0]['id'], type(
-    #         data['data'][0]['order_id']))
-    # assert isinstance(
-    #     json['orders'][1]['id'], type(
-    #         data['data'][1]['order_id']))
-
-    # assert isinstance(
-    #     json['orders'][0]['id'], type(
-    #         data_r['orders'][0]['id']))
-    # assert isinstance(
-    #     json['orders'][1]['id'], type(
-    #         data_r['orders'][1]['id']))
+    assert res.get_json()['orders'] == valid_orders
 
 
 def test_clear_testing_database():

@@ -23,14 +23,14 @@ app = Flask(__name__)
 
 
 @app.route('/couriers', methods=['POST'])
-def get_couriers():
+def post_couriers():
     '''
     1) POST /couriers
     '''
     data = request.get_json()
     couriers_list = data['data']
-
     db_sess = db_session.create_session()
+
     validation_error = {"validation_error": {
         "couriers": []
         }
@@ -95,7 +95,7 @@ def patch_couriers(courier_id):
             data = request.get_json()
             db_sess = db_session.create_session()
 
-            if Couriers.validate_patch(data):
+            if Couriers.validate_patch(data, db_sess):
 
                 # В нём менять аттрибуты courier_type, regions, working_hours
                 cour = db_sess.query(Couriers).filter(
@@ -153,7 +153,14 @@ def set_orders():
             order.order_id = order_json['order_id']
             order.weight = order_json['weight']
 
-            reg = Regions(region_code=order_json['region'])
+            query_region = db_sess.query(Regions).filter(
+                Regions.region_code == order_json['region']).first()
+            if query_region is None:
+                reg = Regions(region_code=order_json['region'])
+            else:
+                reg = query_region
+
+            db_sess.add(reg)
 
             order.region = reg
             order.delivery_time = convert_wh_hours_to_str(
@@ -164,6 +171,7 @@ def set_orders():
             validation_error["validation_error"]['orders'].append(
                 {'id': order_json['order_id']}
             )
+            db_sess.rollback()
             ve = True
             continue
 
@@ -302,7 +310,6 @@ def get_courier_info(courier_id):
 
         add_response = {'earnings': earnings}
         # Counting rationg of courier
-        breakpoint()
         if len(delivery) > 0:
             regions_avg = Regions.count_avg_time_from_orders(delivery)
             rating = Couriers.count_rating_from_regions_avg(regions_avg)
@@ -319,16 +326,15 @@ def get_courier_info(courier_id):
     return '', '400 Bad request'
 
 
-client = app.test_client()
-
 app.config['SECRET_KEY'] = os.getenv('KEY')
 
 
-def main():
+def main(debug=False):
     # Preparing db and run app
     db_session.global_init_sqlite('db.sqlite')
-    app.run()
+    app.run(debug=debug)
+
 
 
 if __name__ == '__main__':
-    main()
+    main(debug=True)

@@ -206,10 +206,10 @@ def assign_orders():
 
                 regions = [reg.region_id for reg in cour.regions]
 
-                orders = db_sess.query(Orders).filter(Orders.order_complete_time == None).filter(
+                orders = db_sess.query(Orders).filter(
+                    Orders.order_complete_time == None).filter(
                     Orders.weight <= cour.courier_type.type_weight,
-                    Orders.region_id.in_(regions)
-                ).all()
+                    Orders.region_id.in_(regions)).all()
 
                 for_deliver = []
                 for order in orders:
@@ -308,7 +308,7 @@ def get_courier_info(courier_id):
 
         if courier:
             delivery = db_sess.query(Delivery)\
-                .filter(Delivery.delivery_complete_time is not None)\
+                .filter(Delivery.delivery_complete_time != None)\
                 .filter(Delivery.courier_id == courier_id).all()
 
             # Counting Earnings of courier
@@ -322,7 +322,8 @@ def get_courier_info(courier_id):
             if len(delivery) > 0:
                 regions_avg = Regions.count_avg_time_from_orders(delivery)
                 if len(regions_avg) != 0:
-                    rating = Couriers.count_rating_from_regions_avg(regions_avg)
+                    rating = Couriers.count_rating_from_regions_avg(
+                                                                    regions_avg)
 
                     courier.rating = rating
                     add_response['rating'] = rating

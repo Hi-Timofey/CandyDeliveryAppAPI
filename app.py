@@ -190,7 +190,7 @@ def set_orders():
             db_sess.add(order)
             response['orders'].append({"id": order.order_id})
             db_sess.commit()
-            return make_response(jsonify(response), 201)
+        return make_response(jsonify(response), 201)
 
 
 @ app.route('/orders/assign', methods=['POST'])
@@ -355,7 +355,7 @@ def main(debug=False):
     # Preparing db and run app
     db_session.global_init_sqlite('db.sqlite')
     app.config.from_envvar('API_CONFIG')
-    app.run()
+    app.run(host='0.0.0.0', port=8080)
 
 
 if __name__ == '__main__':

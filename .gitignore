@@ -5,3 +5,4 @@ openapi.yaml
 .env
 *.db
 *.sqlite
+*.backup

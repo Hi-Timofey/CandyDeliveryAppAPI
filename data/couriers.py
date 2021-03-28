@@ -244,8 +244,8 @@ class Couriers(SqlAlchemyBase):
         return False
 
     def __repr__(self):
-        return 'COURier(id="{}", type="{}", working_hours="{}", regions="{}")'.format(
-            self.courier_id, self.courier_type, self.working_hours, self.regions)
+        return f'<Courier {self.courier_id}>'
+
 
     @staticmethod
     def validate_patch(json_data: dict, db_sess, logger=None) -> bool:

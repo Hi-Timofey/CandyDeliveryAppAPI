@@ -70,14 +70,15 @@ class Delivery(SqlAlchemyBase):
             completion = '|NO|'
         else:
             completion = self.delivery_complete_time
-        return 'Delivery(id={}, assigned_time={}, completed={})'.format(
+        return '< Delivery {}: assigned_time={}, completed={} >'.format(
             self.delivery_id, self.assign_time, completion)
 
     def is_completed(self) -> bool:
-        orders = sorted(self.orders_in_delivery,key=lambda x: x.order_complete_time)
+        orders = self.orders_in_delivery
         for order in orders:
             if order.order_complete_time is None:
                 return False
+        orders = sorted(orders,key=lambda x: x.order_complete_time)
         self.delivery_complete_time = orders[-1].order_complete_time
         return True
 

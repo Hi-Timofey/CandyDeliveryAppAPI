@@ -113,7 +113,7 @@ class Couriers(SqlAlchemyBase):
     @staticmethod
     def count_rating_from_regions_avg(regions_avg) -> float:
         t = min(regions_avg)
-        answer = (60*60 - min(t, 60*60))/(60*60) * 5
+        answer = (60 * 60 - min(t, 60 * 60)) / (60 * 60) * 5
         return answer
 
     def get_courier_wh_list(self):
@@ -143,7 +143,7 @@ class Couriers(SqlAlchemyBase):
                 return delivery
         return None
 
-    def change_cour_work_hours(self, new_working_hours, db_sess):
+    def change_cour_work_hours(self, new_working_hours,db_sess):
         old_working_hours = self.get_courier_wh_list()
         if new_working_hours != old_working_hours:
             delivery = self.get_current_delivery()
@@ -247,9 +247,8 @@ class Couriers(SqlAlchemyBase):
     def __repr__(self):
         return f'<Courier {self.courier_id}>'
 
-
     @staticmethod
-    def validate_patch(json_data: dict, db_sess, logger=None) -> bool:
+    def validate_patch(json_data: dict, logger=None) -> bool:
         if not isinstance(json_data, dict) or json_data == {}:
             return False
         working_hours_s = {
@@ -263,14 +262,14 @@ class Couriers(SqlAlchemyBase):
         courier_type_s = {
             'courier_type': {'type': 'string',
                              'regex': '^[a-zA-Z]+$'}
-                        }
+        }
         regions_s = {'regions': {'type': 'list',
                                  'minlength': 0,
                                  'empty': False,
                                  'schema': {
                                      'type': 'integer',
                                      'min': 1
-                                     }}
+                                 }}
                      }
         v = Validator()
         if len(json_data) == 1:
@@ -298,7 +297,7 @@ class Couriers(SqlAlchemyBase):
 
             if 'courier_type' in json_data.keys():
                 check_type = TransportTypes.type_exist(
-                    json_data['courier_type'], db_sess)
+                    json_data['courier_type'])
             else:
                 check_type = True
 
@@ -332,15 +331,15 @@ class Couriers(SqlAlchemyBase):
                 'type': 'string',
                 'regex': '^[a-zA-Z]+$'},
             'regions': {
-                      'required': True,
-                      'type': 'list',
-                      'minlength': 0,
-                      'empty': False,
-                      'schema': {
-                          'type': 'integer',
-                          'min': 1
-                          }
-                      },
+                'required': True,
+                'type': 'list',
+                'minlength': 0,
+                'empty': False,
+                'schema': {
+                    'type': 'integer',
+                    'min': 1
+                }
+            },
             'working_hours': {'type': 'list'}}
         cour_valid = Validator(cj_schema)
         db = create_session()

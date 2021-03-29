@@ -134,7 +134,6 @@ def test_validate_patch_ok():
 
 
 def test_validate_patch_wrong():
-    session = get_test_db()
     inp_d_wrong = [{}, [], '', None, 1, 1.5,
                    {"regions": [-11, 33, 2]},
                    {"region": [-11, 33, 2]},
@@ -158,7 +157,7 @@ def test_validate_patch_wrong():
                    ]
     for inp in inp_d_wrong:
         print('For input:', f'"{inp}"')
-        answer = couriers.Couriers.validate_patch(inp, session)
+        answer = couriers.Couriers.validate_patch(inp)
         print('Answer is:', f'"{answer}"')
         assert not answer
 
@@ -450,7 +449,6 @@ def test_patch_couriers():
 
 
 def test_patch_couriers_wrong():
-    session = get_test_db()
     data = [
         (1, {"courier_type": "feot",
              "regions": [1, 12, 22],

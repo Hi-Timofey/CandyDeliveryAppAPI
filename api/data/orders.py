@@ -5,6 +5,7 @@ from marshmallow import fields
 
 import datetime
 from .db_session import SqlAlchemyBase
+from .db_session import create_session
 from cerberus import Validator
 from .couriers import validate_wh, convert_wh_hours_to_time, convert_str_hours_to_wh
 from .regions import Regions
@@ -96,7 +97,7 @@ class Orders(SqlAlchemyBase):
         return False
 
     @staticmethod
-    def validate_order_json(order_json, db, logger=None):
+    def validate_order_json(order_json, logger=None):
         dh_s = {
                         'empty': False,
                         'type': 'list',
@@ -120,6 +121,7 @@ class Orders(SqlAlchemyBase):
         if v.validate(order_json):
             i = order_json['order_id']
             wh = order_json['delivery_hours']
+            db= create_session()
             query_id = db.query(Orders).filter(
                 Orders.order_id == i).first()
 

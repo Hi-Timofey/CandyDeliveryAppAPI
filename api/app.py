@@ -102,7 +102,7 @@ def patch_couriers(courier_id):
             data = request.get_json()
             db_sess = db_session.create_session()
 
-            if Couriers.validate_patch(data, db_sess, logger=app.logger):
+            if Couriers.validate_patch(data, logger=app.logger):
 
                 cour = db_sess.query(Couriers).filter(
                     Couriers.courier_id.like(courier_id)).first()
@@ -166,7 +166,7 @@ def set_orders():
     valid_orders = []
     for order_json in orders_list:
 
-        if Orders.validate_order_json(order_json, db_sess, logger=app.logger):
+        if Orders.validate_order_json(order_json, logger=app.logger):
             if ve:
                 continue
             order = Orders()

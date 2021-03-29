@@ -2,6 +2,7 @@ import sqlalchemy as sa
 from sqlalchemy import orm
 
 from .db_session import SqlAlchemyBase
+from .db_session import create_session
 
 
 class TransportTypes(SqlAlchemyBase):
@@ -34,6 +35,7 @@ class TransportTypes(SqlAlchemyBase):
         return self.type_weight != other.type_weight
 
     @staticmethod
-    def type_exist(type_name, db_sess) -> bool:
+    def type_exist(type_name) -> bool:
+        db_sess = create_session()
         query = db_sess.query(TransportTypes.type_name).all()
         return (type_name,) in query

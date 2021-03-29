@@ -83,4 +83,4 @@ class Delivery(SqlAlchemyBase):
         return True
 
     def get_str_assign_time(self):
-        return self.assign_time.isoformat() + 'Z'
+        return self.assign_time.isoformat()[:22] + 'Z'

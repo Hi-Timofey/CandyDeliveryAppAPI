@@ -56,6 +56,12 @@ class Orders(SqlAlchemyBase):
         return convert_wh_hours_to_time(wh)
 
     @staticmethod
+    def delivery_time_of(order) -> list:
+        string = order.delivery_time
+        wh = convert_str_hours_to_wh(string)
+        return convert_wh_hours_to_time(wh)
+
+    @staticmethod
     def validate_complete(complete_json, db, logger=None):
         schema = {
             'order_id': {
@@ -73,23 +79,29 @@ class Orders(SqlAlchemyBase):
                     if delivery.delivery_courier.courier_id \
                             == complete_json['courier_id']:
                         withoutz_string = complete_json['complete_time'][:22]
-                        complete_time = datetime.datetime.fromisoformat(withoutz_string+ '0')
+                        complete_time = datetime.datetime.fromisoformat(
+                            withoutz_string + '0')
 
-                        # TODO Check complete time by delivery time of this
-                        # order
-                        # if complete_time.time() > order.delivery_time.time():
-                        #     if logger:
-                        #         logger.info(f'Complete time > delivery time of order: {order}')
-                        #     return False
+                        period_time = Orders.delivery_time_of(order)
+                        breakpoint()
+                        if not any(
+                            [p[0] < complete_time.time() < p[1]
+                             for p in period_time]):
+                            if logger:
+                                logger.info(
+                                    f'Complete time{complete_time} is not match delivery time of order: {order}')
+                            return False
 
-                        if delivery.assign_time < complete_time:
+                        breakpoint()
+                        if delivery.assign_time.time() < complete_time.time():
                             orders = delivery.orders_in_delivery
                             for order in orders:
                                 if order.order_complete_time:
-                                    if order.order_complete_time > \
-                                            complete_time:
+                                    if order.order_complete_time.time() > \
+                                            complete_time.time():
                                         if logger:
-                                            logger.info(f'Wrong completion time: {order} AND {complete_time}')
+                                            logger.info(
+                                                f'Wrong completion time: {order} AND {complete_time}')
                                         return False
                             return True
         elif logger:
@@ -99,29 +111,29 @@ class Orders(SqlAlchemyBase):
     @staticmethod
     def validate_order_json(order_json, logger=None):
         dh_s = {
-                        'empty': False,
-                        'type': 'list',
-                        'schema': {
-                            'type': 'string',
-                            'regex': '^[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}-[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}$'
+            'empty': False,
+            'type': 'list',
+            'schema': {
+                'type': 'string',
+                'regex': '^[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}-[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}$'
 
-                        }
-                    }
+            }
+        }
         schema = {'order_id': {
+            'required': True,
+            'type': 'integer', 'min': 1},
+            'weight': {
+            'required': True,
+            'type': 'float', 'min': 0.01, 'max': 50.0},
+            'region': {
                 'required': True,
             'type': 'integer', 'min': 1},
-                  'weight': {
-                'required': True,
-                      'type': 'float', 'min': 0.01, 'max': 50.0},
-                  'region': {
-                'required': True,
-                      'type': 'integer', 'min': 1},
             'delivery_hours': dh_s}
         v = Validator(schema)
         if v.validate(order_json):
             i = order_json['order_id']
             wh = order_json['delivery_hours']
-            db= create_session()
+            db = create_session()
             query_id = db.query(Orders).filter(
                 Orders.order_id == i).first()
 

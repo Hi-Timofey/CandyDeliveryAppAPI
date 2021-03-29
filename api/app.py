@@ -266,7 +266,7 @@ def assign_orders():
                         # --- END ---
 
                         response['assign_time'] = assign_time.isoformat()[
-                            :-4] + "Z"
+                            :22] + "Z"
                         return make_response(jsonify(response), '200 OK')
                     return make_response(jsonify({'orders': []}), '200 OK')
                 else:

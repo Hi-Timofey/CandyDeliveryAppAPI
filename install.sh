@@ -1,6 +1,6 @@
 #/usr/bin/env bash
 activate () {
-    . flask_env/bin/activate
+    . .flask_env/bin/activate
 }
 
 # Installing python3 

@@ -540,7 +540,7 @@ def test_assigment():
     assert ords_req.status_code == 201
 
     res = client.post(f'/orders/assign', json={'courier_id': cour_id})
-    assert res.status_code == 201
+    assert res.status_code == 200
 
     assert res.get_json()['orders'] == valid_orders
 

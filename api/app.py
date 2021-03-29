@@ -44,8 +44,7 @@ def post_couriers():
     valid_couriers = []
     for courier_json in couriers_list:
 
-        if Couriers.validate_courier_json(
-                courier_json, db_sess, logger=app.logger):
+        if Couriers.validate_courier_json(courier_json, logger=app.logger):
             courier_json['working_hours'] = convert_wh_hours_to_str(
                 courier_json['working_hours'])
             courier_json['courier_type'] = db_sess.query(

@@ -9,6 +9,7 @@ from datetime import time
 from cerberus import Validator
 import datetime
 from .db_session import SqlAlchemyBase
+from .db_session import create_session
 
 
 def convert_wh_hours_to_time(working_hours):
@@ -321,7 +322,7 @@ class Couriers(SqlAlchemyBase):
         return res
 
     @ staticmethod
-    def validate_courier_json(courier_json: dict, db, logger=None) -> bool:
+    def validate_courier_json(courier_json: dict, logger=None) -> bool:
         cj_schema = {
             'courier_id': {
                 'required': True,
@@ -342,6 +343,7 @@ class Couriers(SqlAlchemyBase):
                       },
             'working_hours': {'type': 'list'}}
         cour_valid = Validator(cj_schema)
+        db = create_session()
 
         if cour_valid.validate(courier_json):
             try:

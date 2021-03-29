@@ -14,4 +14,4 @@ python3 -m virtualenv .flask_env
 activate
 
 # Installing requirements.txt
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r api/requirements.txt

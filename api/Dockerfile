@@ -1,9 +1,8 @@
 FROM python:3.8
 
+# Preparing
 EXPOSE 8080
-
 RUN apt -y update && apt -y upgrade
-
 WORKDIR /app
 
 # Install 
@@ -18,7 +17,6 @@ COPY app.py /app
 COPY run.sh /app
 COPY tests.py /app
 
-# Run app.py when the container launches
+# Run ./run.sh to start web server
 RUN chmod u+x /app/run.sh
-# ENTRYPOINT [ "bash" ]
-CMD ./run.sh
+RUN ./run.sh

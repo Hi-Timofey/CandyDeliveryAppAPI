@@ -1,4 +1,3 @@
-#/usr/bin/env bash
 #/bin/sh
 activate () {
     . .flask_env/bin/activate

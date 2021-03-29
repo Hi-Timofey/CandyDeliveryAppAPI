@@ -12,7 +12,7 @@ sudo apt update && apt-cache policy docker-ce
 sudo apt -y install docker-ce docker-compose
 
 # Installing python3 
-sudo apt install python3 python-pip
+sudo apt install python3 python3-pip
 # Installing virtual env
 python3 -m pip install virtualenv
 # Creating env and load into

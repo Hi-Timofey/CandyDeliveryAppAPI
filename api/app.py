@@ -80,7 +80,7 @@ def post_couriers():
         valid_couriers.append(courier)
 
     if len(validation_error["validation_error"]['couriers']) != 0:
-        return make_response(jsonify(validation_error), 400)
+        return make_response(jsonify(validation_error), '400 Bad Request')
 
     response = {'couriers': []}
     app.logger.info(f'Adding the following Couriers:')
@@ -90,7 +90,7 @@ def post_couriers():
         response['couriers'].append({"id": cour.courier_id})
         db_sess.commit()
 
-    return make_response(jsonify(response), 201)
+    return make_response(jsonify(response), '201 Created')
 
 
 @app.route('/couriers/<int:courier_id>', methods=['PATCH'])
@@ -136,7 +136,7 @@ def patch_couriers(courier_id):
                         jsonify(
                             Couriers.make_courier_response(
                                 cour)),
-                        '200 Created')
+                        '200 OK')
                 else:
                     app.logger.info(f'No courier with id {courier_id}')
                     return '', '404 Not found'
@@ -232,7 +232,6 @@ def assign_orders():
 
                     regions = [reg.region_id for reg in cour.regions]
 
-                    # TODO is and ==
                     orders = db_sess.query(Orders).filter(
                         Orders.order_complete_time == None).filter(
                             Orders.delivery_id == None).filter(
@@ -269,8 +268,8 @@ def assign_orders():
 
                         response['assign_time'] = assign_time.isoformat()[
                             :-4] + "Z"
-                        return make_response(jsonify(response), 201)
-                    return make_response(jsonify({'orders': []}), 201)
+                        return make_response(jsonify(response), '200 OK')
+                    return make_response(jsonify({'orders': []}), '200 OK')
                 else:
                     try:
                         current_delivery = cour.get_current_delivery()
@@ -286,7 +285,7 @@ def assign_orders():
                             'orders':
                             [{'id': order.order_id} for order in orders_list],
                             'assign_time': current_delivery.get_str_assign_time()}
-                        return make_response(jsonify(response), 201)
+                        return make_response(jsonify(response), '200 OK')
                     except BaseException:
                         app.logger.exception(
                             '/assign can`t show any information.')

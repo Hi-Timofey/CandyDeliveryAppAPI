@@ -31,7 +31,8 @@ def post_couriers():
         data = request.get_json()
         couriers_list = data['data']
     except BaseException as be:
-        return make_response(jsonify({'validation_error': 'wrong json data'}), 400)
+        return make_response(
+            jsonify({'validation_error': 'wrong json data'}), 400)
 
     db_sess = db_session.create_session()
 
@@ -43,7 +44,8 @@ def post_couriers():
     valid_couriers = []
     for courier_json in couriers_list:
 
-        if Couriers.validate_courier_json(courier_json, db_sess, logger=app.logger):
+        if Couriers.validate_courier_json(
+                courier_json, db_sess, logger=app.logger):
             courier_json['working_hours'] = convert_wh_hours_to_str(
                 courier_json['working_hours'])
             courier_json['courier_type'] = db_sess.query(
@@ -60,7 +62,7 @@ def post_couriers():
         for region_name in courier_json['regions']:
             if db_sess.query(Regions).filter(Regions.region_code ==
                                              region_name).first(
-                                             ) is None and region_name not in added_regions:
+            ) is None and region_name not in added_regions:
                 reg = Regions(region_name)
                 db_sess.add(reg)
                 # db_sess.commit()
@@ -107,7 +109,8 @@ def patch_couriers(courier_id):
                     Couriers.courier_id.like(courier_id)).first()
 
                 if cour:
-                    app.logger.info(f'Changing {cour} with following params:\n{data.keys()}')
+                    app.logger.info(
+                        f'Changing {cour} with following params:\n{data.keys()}')
                     for key in data:
                         # TODO Bad perfomance, change with getattr/setattr(?) or
                         # property function
@@ -126,10 +129,14 @@ def patch_couriers(courier_id):
                         elif isinstance(data[key][0], str):
 
                             new_working_hours = data[key]
-                            cour.change_cour_work_hours(new_working_hours, db_sess)
+                            cour.change_cour_work_hours(
+                                new_working_hours, db_sess)
 
                     return make_response(
-                        jsonify(Couriers.make_courier_response(cour)), '200 Created')
+                        jsonify(
+                            Couriers.make_courier_response(
+                                cour)),
+                        '200 Created')
                 else:
                     app.logger.info(f'No courier with id {courier_id}')
                     return '', '404 Not found'
@@ -182,9 +189,12 @@ def set_orders():
 
             valid_orders.append(order)
         else:
-            validation_error["validation_error"]['orders'].append(
-                {'id': order_json['order_id']}
-            )
+            try:
+                validation_error["validation_error"]['orders'].append(
+                    {'id': order_json['order_id']}
+                )
+            except KeyError as ke:
+                validation_error["validation_error"]['schema_error'] = order_json
             db_sess.rollback()
             ve = True
             continue
@@ -251,7 +261,8 @@ def assign_orders():
                         assign_time = datetime.datetime.now()
                         delivery.assign_time = assign_time
                         delivery.orders_in_delivery = for_deliver
-                        app.logger.info(f'{cour} got {delivery} with {for_deliver}')
+                        app.logger.info(
+                            f'{cour} got {delivery} with {for_deliver}')
                         db_sess.add(delivery)
                         db_sess.commit()
                         # --- END ---
@@ -263,20 +274,22 @@ def assign_orders():
                 else:
                     try:
                         current_delivery = cour.get_current_delivery()
-                        app.logger.info(f'Courier {courier_id} have {current_delivery}')
+                        app.logger.info(
+                            f'Courier {courier_id} have {current_delivery}')
                         orders_list = db_sess.query(
                             Orders.order_id).filter(
                                 Orders.delivery_id
                                 == current_delivery.delivery_id).filter(
                                     Orders.order_complete_time == None
-                                ).all()
+                        ).all()
                         response = {
                             'orders':
                             [{'id': order.order_id} for order in orders_list],
                             'assign_time': current_delivery.get_str_assign_time()}
                         return make_response(jsonify(response), 201)
                     except BaseException:
-                        app.logger.exception('/assign can`t show any information.')
+                        app.logger.exception(
+                            '/assign can`t show any information.')
                         return '', '400 Bad request'
     return '', '400 Bad request'
 
@@ -295,7 +308,7 @@ def complete_order():
 
             response = {'order_id': order.order_id}
             complete_time = datetime.datetime.fromisoformat(
-                data['complete_time'][:22]+'0')
+                data['complete_time'][:22] + '0')
 
             if not order.is_completed():
                 order.order_complete_time = complete_time

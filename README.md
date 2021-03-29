@@ -40,9 +40,9 @@
 
 Также необходимо поменять секретный ключ и режим работы сервера в конфигурационном файле сервера *api/config.cfg*:
 
-        SECRET_KEY = 'вставить_случайную_последовательность_символов'	
-        ...
-        DEBUG = False
+    SECRET_KEY = 'вставить_случайную_последовательность_символов'	
+    ...
+    DEBUG = False
 
 ---
 ## Запуск (Docker)
@@ -53,44 +53,44 @@
 
 Установка (включена в скрипт *install_local.sh*):
 
-        $ sudo apt -y update && sudo apt -y upgrade
-        $ sudo apt install apt-transport-https ca-certificates curl software-properties-common
-        $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-        $ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
-        $ sudo apt update && apt-cache policy docker-ce
-        $ sudo apt -y install docker-ce docker-compose
-        $ sudo docker run hello-world # Проверка работоспособности
+    $ sudo apt -y update && sudo apt -y upgrade
+    $ sudo apt install apt-transport-https ca-certificates curl software-properties-common
+    $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+    $ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+    $ sudo apt update && apt-cache policy docker-ce
+    $ sudo apt -y install docker-ce docker-compose
+    $ sudo docker run hello-world # Проверка работоспособности
 
 Для запуска веб сервера достаточно в папке проекта выполнить команду:
 
-        $ docker-compose up -d --build
+    $ docker-compose up -d --build
 
 ## Запуск обычный
 ### Подготовка
 Перед началом работы с сервером необходим активировать venv:
 
-        $ source .flask_env/bin/activate
+    $ source .flask_env/bin/activate
 
 из которого в последствии можно выйти:
 
-            $ deactivate
+    $ deactivate
 
 ### Тесты
 Для запуска тестов используется следующая команда (*пердварительно активировать venv*):
 
-            $ python3 -m pytest 	
+    $ python3 -m pytest 	
 
 После её выполнения может остаться тестовый вариант sqlite бд, который необходимо удалить для дальнейшего корректного функционирования тестов.
 
 ### Запуск веб сервера
 Для запуска сервера использовать скрипт *./run*:
 
-            $ chmod u+x run.sh
-            $ ./run.sh
+    $ chmod u+x run.sh
+    $ ./run.sh
 
 (при использвании *run.sh* перед сервером будут запущены тесты)
 Для запуска без тестов:
 
-            (.flask_env)$ python3 app.py
+    (.flask_env)$ python3 app.py
 
 ---

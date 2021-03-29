@@ -55,7 +55,7 @@ class Orders(SqlAlchemyBase):
         return convert_wh_hours_to_time(wh)
 
     @staticmethod
-    def validate_complete(complete_json, db):
+    def validate_complete(complete_json, db, logger=None):
         schema = {
             'order_id': {
                 'type': 'integer', 'min': 1}, 'courier_id': {
@@ -71,16 +71,28 @@ class Orders(SqlAlchemyBase):
                 if delivery:
                     if delivery.delivery_courier.courier_id \
                             == complete_json['courier_id']:
-                        complete_time = datetime.datetime.fromisoformat(
-                            complete_json['complete_time'][:22] + '0')
+                        withoutz_string = complete_json['complete_time'][:22]
+                        complete_time = datetime.datetime.fromisoformat(withoutz_string+ '0')
+
+                        # TODO Check complete time by delivery time of this
+                        # order
+                        # if complete_time.time() > order.delivery_time.time():
+                        #     if logger:
+                        #         logger.info(f'Complete time > delivery time of order: {order}')
+                        #     return False
+
                         if delivery.assign_time < complete_time:
                             orders = delivery.orders_in_delivery
                             for order in orders:
                                 if order.order_complete_time:
                                     if order.order_complete_time > \
                                             complete_time:
+                                        if logger:
+                                            logger.info(f'Wrong completion time: {order} AND {complete_time}')
                                         return False
                             return True
+        elif logger:
+            logger.info(f'Bad data: {v.errors}')
         return False
 
     @staticmethod

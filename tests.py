@@ -445,7 +445,7 @@ def test_patch_couriers():
     for i in range(len(data)):
         id_, inp = data[i]
         res = client.patch(f'/couriers/{id_}', json=inp)
-        assert res.status_code == 201
+        assert res.status_code == 200
         assert res.get_json() == data_r[i]
 
 

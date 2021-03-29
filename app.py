@@ -27,8 +27,12 @@ def post_couriers():
     '''
     1) POST /couriers
     '''
-    data = request.get_json()
-    couriers_list = data['data']
+    try:
+        data = request.get_json()
+        couriers_list = data['data']
+    except BaseException as be:
+        return make_response(jsonify({'validation_error': 'wrong json data'}), 400)
+
     db_sess = db_session.create_session()
 
     validation_error = {"validation_error": {
@@ -125,7 +129,7 @@ def patch_couriers(courier_id):
                             cour.change_cour_work_hours(new_working_hours, db_sess)
 
                     return make_response(
-                        jsonify(Couriers.make_courier_response(cour)), 201)
+                        jsonify(Couriers.make_courier_response(cour)), '200 Created')
                 else:
                     app.logger.info(f'No courier with id {courier_id}')
                     return '', '404 Not found'
@@ -139,8 +143,12 @@ def set_orders():
     '''
     3) POST /orders
     '''
-    data = request.get_json()
-    orders_list = data['data']
+    try:
+        data = request.get_json()
+        orders_list = data['data']
+    except BaseException as be:
+        app.logger.exception(f'Wrong JSON data passed: {be}')
+        return make_response('400 Bad request')
 
     db_sess = db_session.create_session()
     ve = False
@@ -182,7 +190,8 @@ def set_orders():
             continue
 
     if ve:
-        return make_response(jsonify(validation_error), 400)
+        app.logger.info(f'Passes not valid data: {validation_error}')
+        return make_response(jsonify(validation_error), '400 Bad request')
     else:
         response = {'orders': []}
 
@@ -190,7 +199,7 @@ def set_orders():
             db_sess.add(order)
             response['orders'].append({"id": order.order_id})
             db_sess.commit()
-        return make_response(jsonify(response), 201)
+        return make_response(jsonify(response), '201 Created')
 
 
 @ app.route('/orders/assign', methods=['POST'])
@@ -253,9 +262,8 @@ def assign_orders():
                     return make_response(jsonify({'orders': []}), 201)
                 else:
                     try:
-                        breakpoint()
                         current_delivery = cour.get_current_delivery()
-                        app.logger.info(f'{cour} have {delivery}')
+                        app.logger.info(f'Courier {courier_id} have {current_delivery}')
                         orders_list = db_sess.query(
                             Orders.order_id).filter(
                                 Orders.delivery_id
@@ -281,19 +289,18 @@ def complete_order():
     data = request.get_json()
     db_sess = db_session.create_session()
     if data:
-        if Orders.validate_complete(data, db_sess):
-            breakpoint()
+        if Orders.validate_complete(data, db_sess, logger=app.logger):
             order = db_sess.query(Orders).filter(
                 Orders.order_id == data['order_id']).first()
 
             response = {'order_id': order.order_id}
             complete_time = datetime.datetime.fromisoformat(
-                data['complete_time'][:23])
+                data['complete_time'][:22]+'0')
 
             if not order.is_completed():
                 order.order_complete_time = complete_time
             else:
-                return make_response(jsonify(response), 200)
+                return make_response(jsonify(response), '200 OK')
 
             db_sess.add(order)
 
@@ -303,7 +310,7 @@ def complete_order():
 
             db_sess.add(delivery)
             db_sess.commit()
-            return make_response(jsonify(response), 200)
+            return make_response(jsonify(response), '200 OK')
     return '', '400 Bad request'
 
 
@@ -344,11 +351,11 @@ def get_courier_info(courier_id):
             response = Couriers.make_courier_response(
                 courier, **add_response)
             db_sess.commit()
-            return make_response(jsonify(response))
+            return make_response(jsonify(response), 200)
         else:
             app.logger.info(f'No courier with id {courier_id}')
 
-    return '', '400 Bad request'
+    return '', '404 Not found'
 
 
 def main(debug=False):
